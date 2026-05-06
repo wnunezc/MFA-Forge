@@ -204,7 +204,7 @@
         <SetProperty Id='ARPINSTALLLOCATION' Value='[APPLICATIONFOLDER]' After='CostFinalize'/>
 
         
-        <Icon Id='ProductICO' SourceFile='D:\OpsZone\DevWorkspace\Projects\Desktop\MFA-Forge\crates\gui\wix\Product.ico'/>
+        <Icon Id='ProductICO' SourceFile='crates\gui\wix\Product.ico'/>
         <Property Id='ARPPRODUCTICON' Value='ProductICO' />
 
         

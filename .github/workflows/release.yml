@@ -85,7 +85,7 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path 'target/rc' | Out-Null
-          cargo wix --package mfa-forge-gui --no-build --target-bin-dir "$PWD/target/release" --output "$PWD/target/rc/${{ steps.release_meta.outputs.asset_name }}"
+          cargo wix --package mfa-forge-gui --no-build --nocapture --target-bin-dir target/release --output "target/rc/${{ steps.release_meta.outputs.asset_name }}"
 
       - name: Generate checksum
         shell: powershell
