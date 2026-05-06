@@ -293,17 +293,37 @@ fn optional_trimmed(value: String) -> Option<String> {
 mod tests {
     use std::{collections::BTreeSet, fs};
 
+    use mfa_forge_core::test_support::{base32_secret_from_seed, secret_string_from_seed};
     use tempfile::TempDir;
 
     use super::*;
+
+    fn csv_secret(seed: &str) -> String {
+        base32_secret_from_seed(seed)
+    }
+
+    fn csv_otpauth_uri(service: &str, user: &str, seed: &str) -> String {
+        AccountRecord::new(
+            service,
+            user,
+            secret_string_from_seed(seed),
+            TotpConfig::default(),
+        )
+        .expect("seeded account should be valid")
+        .otpauth_uri()
+        .expect("seeded otpauth URI should build")
+    }
 
     #[test]
     fn import_accounts_from_csv_parses_metadata_and_totp_fields() {
         let temp_dir = TempDir::new().expect("temp dir should exist");
         let path = temp_dir.path().join("accounts.csv");
+        let secret = csv_secret("csv-import");
         fs::write(
             &path,
-            "service,user,secret,algorithm,digits,period_seconds,labels,note,project_path,source\nGitHub,user@example.com,JBSWY3DPEHPK3PXP,sha256,8,45,\"work,unused\",Primary,ClientA/Auth,manual\n",
+            format!(
+                "service,user,secret,algorithm,digits,period_seconds,labels,note,project_path,source\nGitHub,user@example.com,{secret},sha256,8,45,\"work,unused\",Primary,ClientA/Auth,manual\n"
+            ),
         )
         .expect("csv should be written");
 
@@ -329,9 +349,13 @@ mod tests {
     fn preview_and_selective_import_bitwarden_csv() {
         let temp_dir = TempDir::new().expect("temp dir should exist");
         let path = temp_dir.path().join("bitwarden.csv");
+        let import_uri = csv_otpauth_uri("GitHub", "user@example.com", "bitwarden-uri");
+        let raw_secret = csv_secret("bitwarden-raw");
         fs::write(
             &path,
-            "folder,favorite,type,name,notes,login_username,login_totp\nClientA/Auth,true,login,GitHub,Primary,user@example.com,otpauth://totp/GitHub:user%40example.com?secret=JBSWY3DPEHPK3PXP&issuer=GitHub\nClientB,false,login,GitLab,,dev@example.com,JBSWY3DPEHPK3PXP\n",
+            format!(
+                "folder,favorite,type,name,notes,login_username,login_totp\nClientA/Auth,true,login,GitHub,Primary,user@example.com,{import_uri}\nClientB,false,login,GitLab,,dev@example.com,{raw_secret}\n"
+            ),
         )
         .expect("csv should be written");
 
@@ -353,7 +377,7 @@ mod tests {
         let account = AccountRecord::new_with_metadata(
             "GitHub",
             "user@example.com",
-            SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+            secret_string_from_seed("csv-export"),
             TotpConfig::default(),
             AccountMetadata {
                 labels: vec!["work".to_owned()],
@@ -373,6 +397,6 @@ mod tests {
         ));
         assert!(csv.contains("GitHub,user@example.com,totp,sha1,6,30"));
         assert!(!csv.contains("secret"));
-        assert!(!csv.contains("JBSWY3DPEHPK3PXP"));
+        assert!(!csv.contains(&base32_secret_from_seed("csv-export")));
     }
 }

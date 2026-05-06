@@ -412,7 +412,10 @@ mod tests {
     use secrecy::SecretString;
     use tempfile::TempDir;
 
-    use mfa_forge_core::{AccountRecord, TotpConfig};
+    use mfa_forge_core::{
+        AccountRecord, TotpConfig,
+        test_support::{base32_secret_from_seed, secret_string_from_seed},
+    };
     use mfa_forge_storage::VaultRepository;
 
     fn unlocked_facade() -> (TempDir, VaultFacade, SecretString) {
@@ -433,7 +436,7 @@ mod tests {
             .add_account(
                 service.to_owned(),
                 user.to_owned(),
-                SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+                secret_string_from_seed("vault-facade-primary"),
                 TotpConfig::default(),
             )
             .expect("account should persist");
@@ -521,7 +524,7 @@ mod tests {
                 AccountRecord::new(
                     "GitLab",
                     "dev@example.com",
-                    SecretString::from("KRSXG5DSNFXGOIDB".to_owned()),
+                    secret_string_from_seed("vault-facade-secondary"),
                     TotpConfig::default(),
                 )
                 .expect("backup account should be valid"),
@@ -570,7 +573,7 @@ mod tests {
             .expect("vault export should succeed");
 
         let exported = std::fs::read_to_string(destination).expect("export should be readable");
-        assert!(!exported.contains("JBSWY3DPEHPK3PXP"));
+        assert!(!exported.contains(&base32_secret_from_seed("vault-facade-primary")));
         assert!(!exported.contains(facade.path_display()));
     }
 }

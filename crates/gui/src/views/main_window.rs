@@ -4,7 +4,7 @@ use eframe::egui::{self, Color32, RichText, Stroke, TextEdit};
 
 use mfa_forge_core::{AccountPublic, ProjectDirectory};
 
-use crate::{app::ForgeApp, state::WorkspaceScope, theme};
+use crate::{app::ForgeApp, i18n::tr, state::WorkspaceScope, theme};
 
 const NAV_PANEL_WIDTH: f32 = 258.0;
 const TOOLBAR_HEIGHT: f32 = 56.0;
@@ -88,51 +88,56 @@ fn top_menu_bar(ctx: &egui::Context, app: &mut ForgeApp) {
                         });
 
                         ui.add_enabled_ui(selected_directory_path.is_some() && !vault_busy, |ui| {
-                            if toolbar_button(ui, "📁 Subdirectorio").clicked() {
+                            if toolbar_button(ui, &format!("📁 {}", tr("Subdirectory"))).clicked()
+                            {
                                 app.open_create_directory_dialog(selected_directory_path.clone());
                             }
                         });
 
                         ui.add_enabled_ui(!vault_busy, |ui| {
-                            ui.menu_button("▶ Cuenta", |ui| {
-                                if ui.button("Nueva cuenta").clicked() {
+                            ui.menu_button(format!("▶ {}", tr("Account")), |ui| {
+                                if ui.button(tr("New account")).clicked() {
                                     app.open_add_dialog();
                                     ui.close_menu();
                                 }
                                 ui.separator();
-                                if ui.button("Importar desde archivo").clicked() {
+                                if ui.button(tr("Import from file")).clicked() {
                                     app.open_import_file_dialog();
                                     ui.close_menu();
                                 }
-                                if ui.button("Importar desde URI").clicked() {
+                                if ui.button(tr("Import from URI")).clicked() {
                                     app.open_import_dialog();
                                     ui.close_menu();
                                 }
-                                if ui.button("Importar desde QR").clicked() {
+                                if ui.button(tr("Import from QR")).clicked() {
                                     app.open_import_qr_dialog();
                                     ui.close_menu();
                                 }
                             });
 
                             ui.menu_button("▶ Vault", |ui| {
-                                if ui.button("Importar desde archivo de backup").clicked() {
+                                if ui.button(tr("Import from backup file")).clicked() {
                                     app.import_vault_backup();
                                     ui.close_menu();
                                 }
-                                if ui.button("Exportar backup").clicked() {
+                                if ui.button(tr("Export backup")).clicked() {
                                     app.open_export_dialog();
                                     ui.close_menu();
                                 }
                                 ui.separator();
-                                if ui.button("Historial").clicked() {
+                                if ui.button(tr("History")).clicked() {
                                     app.open_restore_dialog();
                                     ui.close_menu();
                                 }
-                                if ui.button("Rotar contraseña").clicked() {
+                                if ui.button(tr("Rotate password")).clicked() {
                                     app.open_change_password_dialog();
                                     ui.close_menu();
                                 }
                             });
+
+                            if toolbar_button(ui, &format!("❓ {}", tr("Help"))).clicked() {
+                                app.open_help_dialog();
+                            }
                         });
 
                         ui.add_space(4.0);
@@ -140,8 +145,10 @@ fn top_menu_bar(ctx: &egui::Context, app: &mut ForgeApp) {
                         ui.add_space(4.0);
 
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let lock_clicked = toolbar_button(ui, "🔒 Bloquear").clicked();
-                            let clear_clicked = toolbar_button(ui, "✖ Limpiar").clicked();
+                            let lock_clicked =
+                                toolbar_button(ui, &format!("🔒 {}", tr("Lock"))).clicked();
+                            let clear_clicked =
+                                toolbar_button(ui, &format!("✖ {}", tr("Clear"))).clicked();
 
                             ui.add_sized(
                                 [SEARCH_WIDTH, 32.0],
@@ -242,7 +249,7 @@ fn render_workspace_pane(ui: &mut egui::Ui, app: &mut ForgeApp, pane_height: f32
                     ui,
                     palette,
                     "Workspaces",
-                    "Selecciona un proyecto. La barra superior crea raíz, subdirectorios y cuentas sobre esta vista.",
+                    &tr("Select a project. The top bar creates roots, subdirectories, and accounts on top of this view."),
                 );
 
                 ui.add_space(6.0);
@@ -253,7 +260,7 @@ fn render_workspace_pane(ui: &mut egui::Ui, app: &mut ForgeApp, pane_height: f32
                 if workspace_row(
                     ui,
                     palette,
-                    &format!("Sin workspace ({unassigned_count})"),
+                    &format!("{} ({unassigned_count})", tr("No workspace")),
                     0,
                     unassigned_selected,
                 )
@@ -266,7 +273,7 @@ fn render_workspace_pane(ui: &mut egui::Ui, app: &mut ForgeApp, pane_height: f32
 
                 if directories.is_empty() {
                     ui.label(
-                        RichText::new("Todavía no hay workspaces creados.")
+                        RichText::new("No workspaces have been created yet.")
                             .small()
                             .color(palette.secondary_text),
                     );
@@ -335,7 +342,7 @@ fn render_accounts_pane(ui: &mut egui::Ui, app: &mut ForgeApp, pane_height: f32)
                             .add_enabled(
                                 !app.has_background_vault_work(),
                                 egui::Button::new(format!(
-                                    "🗑 Eliminar seleccionadas ({})",
+                                    "🗑 Remove selected ({})",
                                     app.checked_account_count()
                                 )),
                             )
@@ -354,7 +361,7 @@ fn render_accounts_pane(ui: &mut egui::Ui, app: &mut ForgeApp, pane_height: f32)
                     ui.horizontal(|ui| {
                         ui.add(egui::Spinner::new());
                         ui.label(
-                            RichText::new("Buscando cuentas y workspaces...")
+                            RichText::new("Searching accounts and workspaces...")
                                 .small()
                                 .color(palette.secondary_text),
                         );
@@ -400,7 +407,7 @@ fn render_empty_state(
 
     if active_search_query.is_some() {
         ui.label(
-            RichText::new("No se encontraron cuentas o workspaces.")
+            RichText::new("No accounts or workspaces matched the current view.")
                 .small()
                 .color(palette.secondary_text),
         );
@@ -409,13 +416,13 @@ fn render_empty_state(
 
     let message = match scope {
         WorkspaceScope::Unassigned => {
-            "No hay cuentas sin workspace. Usa la barra superior para crear una cuenta sin agrupar o selecciona un workspace existente."
+            "There are no accounts without a workspace. Use the top bar to create one here or select an existing workspace."
         }
         WorkspaceScope::Directory(_) if child_count > 0 => {
-            "Este workspace no tiene cuentas directas. Sus subdirectorios siguen disponibles en la navegación izquierda."
+            "This workspace has no direct accounts. Its subdirectories are still available in the left navigation."
         }
         WorkspaceScope::Directory(_) => {
-            "Este workspace está vacío. Usa la barra superior para crear una cuenta o un subdirectorio dentro del proyecto seleccionado."
+            "This workspace is empty. Use the top bar to create an account or subdirectory inside the selected project."
         }
     };
 
@@ -487,11 +494,11 @@ fn render_accounts_header(
         .show(ui, |ui| {
             ui.horizontal(|ui| {
                 grid_header_label(ui, "", widths.select);
-                grid_header_label(ui, "Servicio", widths.service);
-                grid_header_label(ui, "Usuario", widths.user);
+                grid_header_label(ui, "Service", widths.service);
+                grid_header_label(ui, "User", widths.user);
                 grid_header_label(ui, "Factor", widths.factor);
                 grid_header_label(ui, "Workspace", widths.workspace);
-                grid_header_label(ui, "Acciones", widths.actions);
+                grid_header_label(ui, "Actions", widths.actions);
             });
         });
 }
@@ -619,30 +626,30 @@ fn render_account_row(
                                             app.open_token_dialog();
                                         }
 
-                                        ui.menu_button("▶ Acciones", |ui| {
-                                            if ui.button("Editar").clicked() {
+                                        ui.menu_button("▶ Actions", |ui| {
+                                            if ui.button("Edit").clicked() {
                                                 app.set_primary_account_selection(account.id);
                                                 app.open_edit_dialog();
                                                 ui.close_menu();
                                             }
                                             ui.separator();
-                                            if ui.button("Exportar a archivo").clicked() {
+                                            if ui.button("Export to file").clicked() {
                                                 app.set_primary_account_selection(account.id);
                                                 app.export_selected_account_to_file();
                                                 ui.close_menu();
                                             }
-                                            if ui.button("Exportar como URI").clicked() {
+                                            if ui.button("Export as URI").clicked() {
                                                 app.set_primary_account_selection(account.id);
                                                 app.export_selected_account_uri();
                                                 ui.close_menu();
                                             }
-                                            if ui.button("Exportar como QR").clicked() {
+                                            if ui.button("Export as QR").clicked() {
                                                 app.set_primary_account_selection(account.id);
                                                 app.export_selected_account_qr();
                                                 ui.close_menu();
                                             }
                                             ui.separator();
-                                            if ui.button("Eliminar").clicked() {
+                                            if ui.button("Delete").clicked() {
                                                 app.set_primary_account_selection(account.id);
                                                 app.open_remove_dialog();
                                                 ui.close_menu();
@@ -705,7 +712,7 @@ fn render_workspace_node(
                     !app.has_background_vault_work(),
                     egui::Button::new("🗑").min_size(egui::vec2(24.0, 24.0)),
                 )
-                .on_hover_text("Eliminar workspace vacío")
+                .on_hover_text("Delete empty workspace")
                 .clicked()
         {
             app.open_remove_directory_dialog(directory.path.clone());
@@ -719,12 +726,12 @@ fn render_workspace_node(
 
 fn workspace_value(account: &AccountPublic, selected_directory_path: Option<&str>) -> String {
     let Some(project_path) = account.metadata.project_path.as_deref() else {
-        return "Sin workspace".to_owned();
+        return tr("No workspace");
     };
 
     if let Some(selected_directory_path) = selected_directory_path {
         if project_path == selected_directory_path {
-            return "Raíz actual".to_owned();
+            return "Current root".to_owned();
         }
 
         if let Some(relative) = project_path.strip_prefix(selected_directory_path) {
@@ -778,24 +785,24 @@ fn search_or_scope_heading(
 ) -> (String, String) {
     if let Some(query) = active_search_query {
         return (
-            "Resultados de búsqueda".to_owned(),
+            tr("Search results"),
             format!(
-                "\"{query}\" | {visible_accounts} coincidencia(s) sobre {total_accounts} cuenta(s) del vault."
+                "\"{query}\" | {visible_accounts} match(es) across {total_accounts} vault account(s)."
             ),
         );
     }
 
     match scope {
         WorkspaceScope::Unassigned => (
-            "Cuentas sin workspace".to_owned(),
+            "Accounts without workspace".to_owned(),
             format!(
-                "{visible_accounts} visible(s) | {total_accounts} total en el vault. Las cuentas nuevas se crean aquí mientras esta vista siga activa."
+                "{visible_accounts} visible | {total_accounts} total in the vault. New accounts are created here while this view stays active."
             ),
         ),
         WorkspaceScope::Directory(path) => (
             path.clone(),
             format!(
-                "{visible_accounts} visible(s) | {child_count} subdirectorio(s) inmediato(s). Las cuentas nuevas heredarán este workspace mientras siga seleccionado."
+                "{visible_accounts} visible | {child_count} direct subdirectory(ies). New accounts inherit this workspace while it stays selected."
             ),
         ),
     }
@@ -818,7 +825,7 @@ fn toolbar_button(ui: &mut egui::Ui, label: &str) -> egui::Response {
 fn toolbar_search_input(query: &mut String) -> TextEdit<'_> {
     TextEdit::singleline(query)
         .font(egui::TextStyle::Body)
-        .hint_text("🔍 Buscar (mín. 3 letras)")
+        .hint_text(format!("🔍 {} (min. 3 chars)", tr("Search")))
         .hint_text_font(egui::TextStyle::Body)
         .margin(egui::Margin::symmetric(10.0, 5.0))
         .vertical_align(egui::Align::Center)

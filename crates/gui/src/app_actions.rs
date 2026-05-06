@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::{
     app::{ForgeApp, GuiPendingVaultJob, PendingVaultJobKind},
     app_tasks,
+    i18n::{tr, trf},
     state::{BannerTone, LoaderMode, Screen, WorkspaceScope},
 };
 
@@ -20,14 +21,13 @@ impl ForgeApp {
         let mut confirmation = std::mem::take(&mut self.state.loader.confirm_password_input);
 
         if password.trim().is_empty() {
-            self.state.loader.error =
-                Some("La contraseña maestra no puede estar vacía.".to_owned());
+            self.state.loader.error = Some(tr("The master password cannot be empty."));
             confirmation.zeroize();
             return;
         }
 
         if password != confirmation {
-            self.state.loader.error = Some("La confirmación no coincide.".to_owned());
+            self.state.loader.error = Some(tr("The confirmation does not match."));
             password.zeroize();
             confirmation.zeroize();
             return;
@@ -46,7 +46,7 @@ impl ForgeApp {
                 self.sync_selection();
                 self.set_banner(
                     BannerTone::Success,
-                    "Vault inicializado y desbloqueado. Ya puedes empezar a cargar cuentas MFA.",
+                    tr("Vault initialized and unlocked. You can start adding MFA accounts."),
                 );
             }
             Err(error) => {
@@ -85,7 +85,7 @@ impl ForgeApp {
         self.state.notice_dialog.close();
         self.set_banner(
             BannerTone::Info,
-            "Sesión bloqueada. La contraseña maestra vuelve a ser requerida.",
+            tr("Session locked. The master password is required again."),
         );
     }
 
@@ -158,7 +158,10 @@ impl ForgeApp {
                 self.sync_selection();
                 self.set_banner(
                     BannerTone::Success,
-                    format!("Cuenta {} agregada al vault.", account.display_name()),
+                    trf(
+                        "Account {name} added to the vault.",
+                        &[("name", &account.display_name())],
+                    ),
                 );
             }
             Err(error) => {
@@ -184,8 +187,7 @@ impl ForgeApp {
 
         let uri = self.state.import_dialog.uri.trim().to_owned();
         if uri.is_empty() {
-            self.state.import_dialog.error =
-                Some("Pega un URI otpauth:// antes de importar.".to_owned());
+            self.state.import_dialog.error = Some(tr("Paste an otpauth:// URI before importing."));
             return;
         }
 
@@ -194,7 +196,7 @@ impl ForgeApp {
         if self.has_background_vault_work() {
             self.set_banner(
                 BannerTone::Info,
-                "Ya hay otra operación del vault en curso.",
+                tr("Another vault operation is already in progress."),
             );
             return;
         }
@@ -211,11 +213,11 @@ impl ForgeApp {
         if self.start_vault_job(
             PendingVaultJobKind::ImportUri,
             app_tasks::spawn_import_uri_job(password, uri, metadata),
-            "Ya hay otra operación del vault en curso.",
+            &tr("Another vault operation is already in progress."),
         ) {
             self.set_banner(
                 BannerTone::Info,
-                "Importando cuenta desde URI sin bloquear la interfaz.",
+                tr("Importing an account from a URI without blocking the interface."),
             );
         }
     }
@@ -232,7 +234,7 @@ impl ForgeApp {
 
     pub fn browse_import_qr_image(&mut self) {
         if let Some(path) = FileDialog::new()
-            .add_filter("Imágenes", &["png", "jpg", "jpeg", "bmp"])
+            .add_filter("Images", &["png", "jpg", "jpeg", "bmp"])
             .pick_file()
         {
             self.state.import_qr_dialog.image_path = path.display().to_string();
@@ -246,8 +248,7 @@ impl ForgeApp {
 
         let path = PathBuf::from(self.state.import_qr_dialog.image_path.trim());
         if path.as_os_str().is_empty() {
-            self.state.import_qr_dialog.error =
-                Some("Selecciona una imagen QR antes de importar.".to_owned());
+            self.state.import_qr_dialog.error = Some(tr("Select a QR image before importing."));
             return;
         }
 
@@ -256,7 +257,7 @@ impl ForgeApp {
         if self.has_background_vault_work() {
             self.set_banner(
                 BannerTone::Info,
-                "Ya hay otra operación del vault en curso.",
+                tr("Another vault operation is already in progress."),
             );
             return;
         }
@@ -273,11 +274,11 @@ impl ForgeApp {
         if self.start_vault_job(
             PendingVaultJobKind::ImportQr,
             app_tasks::spawn_import_qr_job(password, path, metadata),
-            "Ya hay otra operación del vault en curso.",
+            &tr("Another vault operation is already in progress."),
         ) {
             self.set_banner(
                 BannerTone::Info,
-                "Importando cuenta desde QR sin bloquear la interfaz.",
+                tr("Importing an account from a QR image without blocking the interface."),
             );
         }
     }
@@ -294,7 +295,7 @@ impl ForgeApp {
 
     pub fn browse_import_file_dialog(&mut self) {
         if let Some(path) = FileDialog::new()
-            .add_filter("Cuenta compatible", &["otpauth", "txt"])
+            .add_filter("Compatible account", &["otpauth", "txt"])
             .pick_file()
         {
             self.state.import_file_dialog.file_path = path.display().to_string();
@@ -309,7 +310,7 @@ impl ForgeApp {
         let file_path = PathBuf::from(self.state.import_file_dialog.file_path.trim());
         if file_path.as_os_str().is_empty() {
             self.state.import_file_dialog.error =
-                Some("Selecciona un archivo compatible antes de importar.".to_owned());
+                Some(tr("Select a compatible file before importing."));
             return;
         }
 
@@ -318,7 +319,7 @@ impl ForgeApp {
         if self.has_background_vault_work() {
             self.set_banner(
                 BannerTone::Info,
-                "Ya hay otra operación del vault en curso.",
+                tr("Another vault operation is already in progress."),
             );
             return;
         }
@@ -335,11 +336,11 @@ impl ForgeApp {
         if self.start_vault_job(
             PendingVaultJobKind::ImportFile,
             app_tasks::spawn_import_file_job(password, file_path, metadata),
-            "Ya hay otra operación del vault en curso.",
+            &tr("Another vault operation is already in progress."),
         ) {
             self.set_banner(
                 BannerTone::Info,
-                "Importando cuenta desde archivo sin bloquear la interfaz.",
+                tr("Importing an account from a file without blocking the interface."),
             );
         }
     }
@@ -348,7 +349,7 @@ impl ForgeApp {
         let Some(account) = self.selected_account() else {
             self.set_banner(
                 BannerTone::Warning,
-                "Selecciona una cuenta antes de intentar editarla.",
+                tr("Select an account before trying to edit it."),
             );
             return;
         };
@@ -359,7 +360,7 @@ impl ForgeApp {
     pub fn submit_edit_dialog(&mut self) {
         let Some(account_id) = self.state.edit_dialog.account_id else {
             self.state.edit_dialog.error =
-                Some("No se encontró la cuenta seleccionada para editar.".to_owned());
+                Some(tr("The selected account could not be found for editing."));
             return;
         };
         let Some(existing) = self
@@ -369,8 +370,9 @@ impl ForgeApp {
             .find(|account| account.id == account_id)
             .cloned()
         else {
-            self.state.edit_dialog.error =
-                Some("La cuenta ya no está disponible en la sesión actual.".to_owned());
+            self.state.edit_dialog.error = Some(tr(
+                "The account is no longer available in the current session.",
+            ));
             return;
         };
         let config = match self.state.edit_dialog.form.totp_config() {
@@ -403,7 +405,10 @@ impl ForgeApp {
                 self.sync_selection();
                 self.set_banner(
                     BannerTone::Success,
-                    format!("Cuenta {} actualizada.", updated.display_name()),
+                    trf(
+                        "Account {name} updated.",
+                        &[("name", &updated.display_name())],
+                    ),
                 );
             }
             Err(error) => {
@@ -420,7 +425,7 @@ impl ForgeApp {
         if self.has_background_vault_work() {
             self.set_banner(
                 BannerTone::Info,
-                "Ya hay otra operación del vault en curso.",
+                tr("Another vault operation is already in progress."),
             );
             return;
         }
@@ -435,11 +440,11 @@ impl ForgeApp {
 
         self.state
             .restore_dialog
-            .begin_pending("Cargando historial restaurable...");
+            .begin_pending(tr("Loading restorable history..."));
         self.pending_history_job = Some(app_tasks::spawn_load_history_job(password));
         self.set_banner(
             BannerTone::Info,
-            "Cargando historial restaurable sin bloquear la interfaz.",
+            tr("Loading restorable history without blocking the interface."),
         );
     }
 
@@ -449,7 +454,7 @@ impl ForgeApp {
         }
         let Some(entry_id) = self.state.restore_dialog.selected_entry_id else {
             self.state.restore_dialog.error =
-                Some("Selecciona una versión del historial antes de restaurar.".to_owned());
+                Some(tr("Select a history version before restoring."));
             return;
         };
 
@@ -462,15 +467,14 @@ impl ForgeApp {
         };
 
         self.state.restore_dialog.pending = true;
-        self.state.restore_dialog.pending_message =
-            Some("Restaurando la versión seleccionada...".to_owned());
+        self.state.restore_dialog.pending_message = Some(tr("Restoring the selected version..."));
         self.state.restore_dialog.error = None;
         self.pending_history_job = Some(app_tasks::spawn_restore_history_entry_job(
             password, entry_id,
         ));
         self.set_banner(
             BannerTone::Info,
-            "Restaurando desde historial sin bloquear la interfaz.",
+            tr("Restoring from history without blocking the interface."),
         );
     }
 
@@ -501,7 +505,7 @@ impl ForgeApp {
 
         if normalized_name.is_empty() {
             self.state.create_directory_dialog.error =
-                Some("El nombre del directorio no puede estar vacío.".to_owned());
+                Some(tr("The directory name cannot be empty."));
             return;
         }
 
@@ -512,7 +516,7 @@ impl ForgeApp {
 
         if self.has_background_vault_work() {
             self.state.create_directory_dialog.error =
-                Some("Ya hay otra operación del vault en curso.".to_owned());
+                Some(tr("Another vault operation is already in progress."));
             self.state.create_directory_dialog.name = name;
             self.state.create_directory_dialog.parent_path = parent_path;
             return;
@@ -536,11 +540,11 @@ impl ForgeApp {
         if self.start_vault_job(
             PendingVaultJobKind::CreateDirectory,
             app_tasks::spawn_create_directory_job(password, full_path),
-            "Ya hay otra operación del vault en curso.",
+            &tr("Another vault operation is already in progress."),
         ) {
             self.set_banner(
                 BannerTone::Info,
-                "Creando workspace sin bloquear la interfaz.",
+                tr("Creating the workspace without blocking the interface."),
             );
         }
     }
@@ -552,14 +556,14 @@ impl ForgeApp {
 
         if new_password.trim().is_empty() {
             self.state.change_password_dialog.error =
-                Some("La nueva contraseña maestra no puede estar vacía.".to_owned());
+                Some(tr("The new master password cannot be empty."));
             confirmation.zeroize();
             return;
         }
 
         if new_password != confirmation {
             self.state.change_password_dialog.error =
-                Some("La confirmación de la nueva contraseña no coincide.".to_owned());
+                Some(tr("The new password confirmation does not match."));
             new_password.zeroize();
             confirmation.zeroize();
             return;
@@ -575,7 +579,7 @@ impl ForgeApp {
                 self.state.change_password_dialog.clear();
                 self.set_banner(
                     BannerTone::Success,
-                    "Contraseña maestra rotada y vault re-cifrado con éxito.",
+                    tr("Master password rotated and vault re-encrypted successfully."),
                 );
             }
             Err(error) => {
@@ -591,7 +595,7 @@ impl ForgeApp {
         } else {
             self.set_banner(
                 BannerTone::Warning,
-                "Selecciona una cuenta antes de intentar eliminarla.",
+                tr("Select an account before trying to remove it."),
             );
         }
     }
@@ -601,7 +605,7 @@ impl ForgeApp {
         if accounts.is_empty() {
             self.set_banner(
                 BannerTone::Warning,
-                "Marca al menos una cuenta antes de intentar eliminar varias.",
+                tr("Check at least one account before trying to remove multiple accounts."),
             );
             return;
         }
@@ -622,7 +626,7 @@ impl ForgeApp {
 
         if self.has_background_vault_work() {
             self.state.remove_dialog.error =
-                Some("Ya hay otra operación del vault en curso.".to_owned());
+                Some(tr("Another vault operation is already in progress."));
             return;
         }
 
@@ -640,7 +644,7 @@ impl ForgeApp {
         let job_started = if account_ids.len() == 1 {
             let Some(account) = self.vault.account_by_id(account_ids[0]) else {
                 self.state.remove_dialog.error =
-                    Some("La cuenta seleccionada ya no está disponible.".to_owned());
+                    Some(tr("The selected account is no longer available."));
                 self.state.remove_dialog.pending = false;
                 return;
             };
@@ -648,7 +652,7 @@ impl ForgeApp {
             self.start_vault_job(
                 PendingVaultJobKind::RemoveAccount,
                 app_tasks::spawn_remove_account_job(password, account),
-                "Ya hay otra operación del vault en curso.",
+                &tr("Another vault operation is already in progress."),
             )
         } else {
             let selected_ids = account_ids
@@ -665,7 +669,7 @@ impl ForgeApp {
 
             if accounts.len() != account_ids.len() {
                 self.state.remove_dialog.error =
-                    Some("Una o más cuentas seleccionadas ya no están disponibles.".to_owned());
+                    Some(tr("One or more selected accounts are no longer available."));
                 self.state.remove_dialog.pending = false;
                 return;
             }
@@ -673,7 +677,7 @@ impl ForgeApp {
             self.start_vault_job(
                 PendingVaultJobKind::RemoveAccounts,
                 app_tasks::spawn_remove_accounts_job(password, accounts),
-                "Ya hay otra operación del vault en curso.",
+                &tr("Another vault operation is already in progress."),
             )
         };
 
@@ -681,9 +685,9 @@ impl ForgeApp {
             self.set_banner(
                 BannerTone::Info,
                 if account_ids.len() == 1 {
-                    "Eliminando cuenta sin bloquear la interfaz."
+                    tr("Removing the account without blocking the interface.")
                 } else {
-                    "Eliminando cuentas seleccionadas sin bloquear la interfaz."
+                    tr("Removing the selected accounts without blocking the interface.")
                 },
             );
         }
@@ -702,7 +706,7 @@ impl ForgeApp {
 
         if self.has_background_vault_work() {
             self.state.remove_directory_dialog.error =
-                Some("Ya hay otra operación del vault en curso.".to_owned());
+                Some(tr("Another vault operation is already in progress."));
             return;
         }
 
@@ -719,11 +723,11 @@ impl ForgeApp {
         if self.start_vault_job(
             PendingVaultJobKind::DeleteDirectory,
             app_tasks::spawn_delete_directory_job(password, path),
-            "Ya hay otra operación del vault en curso.",
+            &tr("Another vault operation is already in progress."),
         ) {
             self.set_banner(
                 BannerTone::Info,
-                "Eliminando workspace vacío sin bloquear la interfaz.",
+                tr("Removing the empty workspace without blocking the interface."),
             );
         }
     }
@@ -745,7 +749,7 @@ impl ForgeApp {
         let Some(account) = self.selected_account() else {
             self.set_banner(
                 BannerTone::Warning,
-                "Selecciona una cuenta antes de generar un token.",
+                tr("Select an account before generating a token."),
             );
             return;
         };
@@ -755,7 +759,7 @@ impl ForgeApp {
         self.state.token_dialog.error = None;
         self.state.token_dialog.pending = true;
         self.state.token_dialog.action_message =
-            Some("Calculando token en segundo plano...".to_owned());
+            Some(tr("Calculating the token in the background..."));
         self.state.token_dialog.action_tone = Some(BannerTone::Info);
         self.request_token_for(account, None);
     }
@@ -767,9 +771,9 @@ impl ForgeApp {
         self.state.token_dialog.pending = true;
         self.state.token_dialog.refresh_count =
             self.state.token_dialog.refresh_count.saturating_add(1);
-        self.state.token_dialog.action_message = Some(format!(
-            "Refrescando token (#{}).",
-            self.state.token_dialog.refresh_count
+        self.state.token_dialog.action_message = Some(trf(
+            "Refreshing token (#{count}).",
+            &[("count", &self.state.token_dialog.refresh_count.to_string())],
         ));
         self.state.token_dialog.action_tone = Some(BannerTone::Info);
         self.request_token_for(account, self.state.token_dialog.token.clone());
@@ -797,14 +801,20 @@ impl ForgeApp {
 
     pub fn copy_selected_token(&mut self, ctx: &egui::Context) {
         let Some(token) = self.selected_token() else {
-            self.set_banner(BannerTone::Warning, "No hay un token visible para copiar.");
+            self.set_banner(
+                BannerTone::Warning,
+                tr("There is no visible token to copy."),
+            );
             return;
         };
 
         ctx.copy_text(token.code.clone());
         self.set_banner(
             BannerTone::Success,
-            format!("Código TOTP copiado para {}.", token.service),
+            trf(
+                "TOTP code copied for {service}.",
+                &[("service", &token.service)],
+            ),
         );
     }
 
@@ -829,7 +839,7 @@ impl ForgeApp {
 
         if self.has_background_vault_work() {
             self.state.export_dialog.error =
-                Some("Ya hay otra operación del vault en curso.".to_owned());
+                Some(tr("Another vault operation is already in progress."));
             return;
         }
 
@@ -838,9 +848,12 @@ impl ForgeApp {
         if self.start_vault_job(
             PendingVaultJobKind::ExportVaultBackup,
             app_tasks::spawn_export_vault_backup_job(path),
-            "Ya hay otra operación del vault en curso.",
+            &tr("Another vault operation is already in progress."),
         ) {
-            self.set_banner(BannerTone::Info, "Exportando el backup cifrado del vault.");
+            self.set_banner(
+                BannerTone::Info,
+                tr("Exporting the encrypted vault backup."),
+            );
         }
     }
 
@@ -855,7 +868,7 @@ impl ForgeApp {
         if self.has_background_vault_work() {
             self.set_banner(
                 BannerTone::Info,
-                "Ya hay otra operación del vault en curso.",
+                tr("Another vault operation is already in progress."),
             );
             return;
         }
@@ -871,11 +884,11 @@ impl ForgeApp {
         if self.start_vault_job(
             PendingVaultJobKind::ImportVaultBackup,
             app_tasks::spawn_import_vault_backup_job(password, path),
-            "Ya hay otra operación del vault en curso.",
+            &tr("Another vault operation is already in progress."),
         ) {
             self.set_banner(
                 BannerTone::Info,
-                "Validando e importando el backup del vault en segundo plano.",
+                tr("Validating and importing the vault backup in the background."),
             );
         }
     }
@@ -884,7 +897,7 @@ impl ForgeApp {
         let Some(account) = self.selected_account() else {
             self.set_banner(
                 BannerTone::Warning,
-                "Selecciona una cuenta antes de exportarla.",
+                tr("Select an account before exporting it."),
             );
             return;
         };
@@ -895,7 +908,7 @@ impl ForgeApp {
             sanitize_file_stem(&account.user),
         );
         let Some(path) = FileDialog::new()
-            .add_filter("Cuenta compatible", &["otpauth", "txt"])
+            .add_filter("Compatible account", &["otpauth", "txt"])
             .set_file_name(&suggested_name)
             .save_file()
         else {
@@ -905,7 +918,7 @@ impl ForgeApp {
         if self.has_background_vault_work() {
             self.set_banner(
                 BannerTone::Info,
-                "Ya hay otra operación del vault en curso.",
+                tr("Another vault operation is already in progress."),
             );
             return;
         }
@@ -921,11 +934,11 @@ impl ForgeApp {
         if self.start_vault_job(
             PendingVaultJobKind::ExportAccountFile,
             app_tasks::spawn_export_account_file_job(password, account, path),
-            "Ya hay otra operación del vault en curso.",
+            &tr("Another vault operation is already in progress."),
         ) {
             self.set_banner(
                 BannerTone::Info,
-                "Exportando la cuenta seleccionada a un archivo compatible.",
+                tr("Exporting the selected account to a compatible file."),
             );
         }
     }
@@ -934,7 +947,7 @@ impl ForgeApp {
         let Some(account) = self.selected_account() else {
             self.set_banner(
                 BannerTone::Warning,
-                "Selecciona una cuenta antes de exportar su QR.",
+                tr("Select an account before exporting its QR."),
             );
             return;
         };
@@ -955,7 +968,7 @@ impl ForgeApp {
         if self.has_background_vault_work() {
             self.set_banner(
                 BannerTone::Info,
-                "Ya hay otra operación del vault en curso.",
+                tr("Another vault operation is already in progress."),
             );
             return;
         }
@@ -971,11 +984,11 @@ impl ForgeApp {
         if self.start_vault_job(
             PendingVaultJobKind::ExportAccountQr,
             app_tasks::spawn_export_account_qr_job(password, account, path),
-            "Ya hay otra operación del vault en curso.",
+            &tr("Another vault operation is already in progress."),
         ) {
             self.set_banner(
                 BannerTone::Info,
-                "Generando el QR de la cuenta seleccionada.",
+                tr("Generating the QR for the selected account."),
             );
         }
     }
@@ -984,7 +997,7 @@ impl ForgeApp {
         let Some(account) = self.selected_account() else {
             self.set_banner(
                 BannerTone::Warning,
-                "Selecciona una cuenta antes de exportarla como URI.",
+                tr("Select an account before exporting it as a URI."),
             );
             return;
         };
@@ -992,7 +1005,7 @@ impl ForgeApp {
         if self.has_background_vault_work() {
             self.state.account_uri_dialog.open = true;
             self.state.account_uri_dialog.error =
-                Some("Ya hay otra operación del vault en curso.".to_owned());
+                Some(tr("Another vault operation is already in progress."));
             self.state.account_uri_dialog.pending = false;
             return;
         }
@@ -1016,11 +1029,11 @@ impl ForgeApp {
         if self.start_vault_job(
             PendingVaultJobKind::ExportAccountUri,
             app_tasks::spawn_export_account_uri_job(password, account),
-            "Ya hay otra operación del vault en curso.",
+            &tr("Another vault operation is already in progress."),
         ) {
             self.set_banner(
                 BannerTone::Info,
-                "Preparando la exportación explícita de la cuenta como URI.",
+                tr("Preparing the explicit export of the account as a URI."),
             );
         }
     }
@@ -1046,7 +1059,7 @@ fn sanitize_file_stem(value: &str) -> String {
 
     let trimmed = sanitized.trim_matches('-');
     if trimmed.is_empty() {
-        "cuenta".to_owned()
+        "account".to_owned()
     } else {
         trimmed.to_owned()
     }

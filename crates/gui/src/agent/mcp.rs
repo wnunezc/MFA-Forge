@@ -366,7 +366,10 @@ mod tests {
     use tempfile::TempDir;
     use uuid::Uuid;
 
-    use mfa_forge_core::{AccountPublic, TotpConfig};
+    use mfa_forge_core::{
+        AccountPublic, AccountRecord, TotpConfig,
+        test_support::{base32_secret_from_seed, secret_string_from_seed},
+    };
     use mfa_forge_storage::VaultRepository;
 
     use crate::{
@@ -440,6 +443,22 @@ mod tests {
         Ok(PasswordRotationPromptDecision::Denied)
     }
 
+    fn seeded_secret(seed: &str) -> String {
+        base32_secret_from_seed(seed)
+    }
+
+    fn seeded_uri(service: &str, user: &str, seed: &str) -> String {
+        AccountRecord::new(
+            service.to_owned(),
+            user.to_owned(),
+            secret_string_from_seed(seed),
+            TotpConfig::default(),
+        )
+        .expect("seeded account should be valid")
+        .otpauth_uri()
+        .expect("seeded URI should build")
+    }
+
     fn unlocked_server() -> UnlockedServerFixture {
         let temp_dir = TempDir::new().expect("temp dir should exist");
         let repository = VaultRepository::new(temp_dir.path().join("vault.json"));
@@ -455,7 +474,7 @@ mod tests {
             .add_account(
                 "GitHub".to_owned(),
                 "user@example.com".to_owned(),
-                SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+                secret_string_from_seed("mcp-existing-account"),
                 TotpConfig::default(),
             )
             .expect("account should be added");
@@ -566,7 +585,7 @@ mod tests {
                 arguments: Some(json!({
                     "service": "RC8 Test",
                     "user": "qa@example.com",
-                    "secret": "JBSWY3DPEHPK3PXP"
+                    "secret": seeded_secret("mcp-create-account-blocked")
                 })),
             })
             .expect("tool call should succeed");
@@ -774,7 +793,7 @@ mod tests {
                 arguments: Some(json!({
                     "service": "RC8 Test Create",
                     "user": "qa1@example.com",
-                    "secret": "KRSXG5DSNFXGOIDB"
+                    "secret": seeded_secret("mcp-create-account-allowed")
                 })),
             })
             .expect("create_account should succeed");
@@ -790,7 +809,7 @@ mod tests {
             .handle_tool_call(ToolCallParams {
                 name: "import_otpauth".to_owned(),
                 arguments: Some(json!({
-                    "uri": "otpauth://totp/RC8%20Test%20Import:qa2%40example.com?secret=JBSWY3DPEHPK3PXP&issuer=RC8%20Test%20Import"
+                    "uri": seeded_uri("RC8 Test Import", "qa2@example.com", "mcp-import-account")
                 })),
             })
             .expect("import_otpauth should succeed");
@@ -808,7 +827,7 @@ mod tests {
                 arguments: Some(json!({
                     "service": "RC8 Test Exhausted",
                     "user": "qa3@example.com",
-                    "secret": "JBSWY3DPEHPK3PXP"
+                    "secret": seeded_secret("mcp-create-account-exhausted")
                 })),
             })
             .expect("third create_account should return MCP-level result");
@@ -1148,7 +1167,7 @@ mod tests {
                 arguments: Some(json!({
                     "service": "RC8 Audit Create",
                     "user": "audit@example.com",
-                    "secret": "JBSWY3DPEHPK3PXP"
+                    "secret": seeded_secret("mcp-audit-create")
                 })),
             })
             .expect("create_account should succeed");

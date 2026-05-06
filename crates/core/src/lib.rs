@@ -1,6 +1,7 @@
 pub mod account;
 pub mod error;
 pub mod selector;
+pub mod test_support;
 pub mod totp;
 
 pub use account::{

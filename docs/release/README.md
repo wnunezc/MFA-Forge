@@ -6,9 +6,9 @@ This folder holds the release policy and RC draft notes for MFA-Forge.
 
 ## Current line
 
-- installed baseline: `RC17`
-- current candidate line: `RC18`
-- numeric candidate version: `0.1.18`
+- installed baseline: `RC18`
+- current candidate line: `RC19`
+- numeric candidate version: `0.1.19`
 - no tag or GitHub release is implied by the presence of these docs alone
 
 ## Versioning and tagging
@@ -22,9 +22,9 @@ Canonical policy for the current pre-`1.0.0` arc:
 
 Examples:
 
-- installed baseline: `RC17` -> `0.1.17`
-- current candidate line: `RC18` -> `0.1.18`
-- candidate tag: `v0.1.18-rc.18`
+- installed baseline: `RC18` -> `0.1.18`
+- current candidate line: `RC19` -> `0.1.19`
+- candidate tag: `v0.1.19-rc.19`
 
 ## Asset naming
 

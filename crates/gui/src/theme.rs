@@ -4,6 +4,8 @@ use directories::ProjectDirs;
 use eframe::egui::{self, Color32, FontFamily, FontId, Stroke, TextStyle, Visuals};
 use serde::{Deserialize, Serialize};
 
+use crate::i18n::Language;
+
 const THEME_PREFERENCES_FILE: &str = "gui-preferences.json";
 
 /// Tema visual persistido para la GUI.
@@ -18,8 +20,8 @@ pub enum ThemePreference {
 impl ThemePreference {
     pub fn label(self) -> &'static str {
         match self {
-            Self::Dark => "Oscuro",
-            Self::Light => "Claro",
+            Self::Dark => "Dark",
+            Self::Light => "Light",
         }
     }
 }
@@ -47,8 +49,17 @@ pub struct ThemePalette {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct StoredThemePreference {
+struct StoredGuiPreferences {
+    #[serde(default)]
     theme: ThemePreference,
+    #[serde(default)]
+    language: Language,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct GuiPreferences {
+    pub theme: ThemePreference,
+    pub language: Language,
 }
 
 /// Aplica spacing, tipografías y visuales del tema activo.
@@ -84,34 +95,69 @@ pub fn apply(ctx: &egui::Context, preference: ThemePreference) {
 
 /// Devuelve la preferencia guardada; si no existe o está dañada, usa oscuro.
 pub fn load_preference() -> ThemePreference {
+    load_preferences().theme
+}
+
+pub fn load_language_preference() -> Language {
+    load_preferences().language
+}
+
+pub fn load_preferences() -> GuiPreferences {
     let Ok(path) = theme_preference_path() else {
-        return ThemePreference::default();
+        return GuiPreferences {
+            theme: ThemePreference::default(),
+            language: Language::default(),
+        };
     };
 
     let Ok(bytes) = fs::read(path) else {
-        return ThemePreference::default();
+        return GuiPreferences {
+            theme: ThemePreference::default(),
+            language: Language::default(),
+        };
     };
 
-    serde_json::from_slice::<StoredThemePreference>(&bytes)
-        .map(|stored| stored.theme)
-        .unwrap_or_default()
+    serde_json::from_slice::<StoredGuiPreferences>(&bytes)
+        .map(|stored| GuiPreferences {
+            theme: stored.theme,
+            language: stored.language,
+        })
+        .unwrap_or(GuiPreferences {
+            theme: ThemePreference::default(),
+            language: Language::default(),
+        })
 }
 
 /// Guarda inmediatamente la preferencia de tema para restaurarla al reiniciar.
 pub fn save_preference(preference: ThemePreference) -> Result<(), String> {
+    let mut stored = load_preferences();
+    stored.theme = preference;
+    save_preferences(stored)
+}
+
+pub fn save_language_preference(language: Language) -> Result<(), String> {
+    let mut stored = load_preferences();
+    stored.language = language;
+    save_preferences(stored)
+}
+
+fn save_preferences(preferences: GuiPreferences) -> Result<(), String> {
     let path = theme_preference_path()?;
 
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|error| {
-            format!("No se pudo crear el directorio de preferencias de la GUI: {error}")
+            format!("The GUI preferences directory could not be created: {error}")
         })?;
     }
 
-    let payload = serde_json::to_vec_pretty(&StoredThemePreference { theme: preference })
-        .map_err(|error| format!("No se pudo serializar la preferencia de tema: {error}"))?;
+    let payload = serde_json::to_vec_pretty(&StoredGuiPreferences {
+        theme: preferences.theme,
+        language: preferences.language,
+    })
+    .map_err(|error| format!("The GUI preferences could not be serialized: {error}"))?;
 
     fs::write(path, payload)
-        .map_err(|error| format!("No se pudo guardar la preferencia de tema: {error}"))
+        .map_err(|error| format!("The GUI preferences could not be saved: {error}"))
 }
 
 /// Expone la paleta semántica usada por la UI.
@@ -159,9 +205,8 @@ pub fn palette(preference: ThemePreference) -> ThemePalette {
 }
 
 fn theme_preference_path() -> Result<PathBuf, String> {
-    let project_dirs = ProjectDirs::from("dev", "OpsZone", "MFA-Forge").ok_or_else(|| {
-        "No se pudo resolver el directorio de datos local de MFA-Forge.".to_owned()
-    })?;
+    let project_dirs = ProjectDirs::from("dev", "OpsZone", "MFA-Forge")
+        .ok_or_else(|| "The MFA-Forge local data directory could not be resolved.".to_owned())?;
     Ok(project_dirs.data_local_dir().join(THEME_PREFERENCES_FILE))
 }
 

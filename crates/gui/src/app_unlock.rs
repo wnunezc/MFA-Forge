@@ -10,6 +10,7 @@ use zeroize::Zeroize;
 
 use crate::{
     app::ForgeApp,
+    i18n::tr,
     platform_auth,
     state::BannerTone,
     vault::{PendingUnlockSession, VaultFacade},
@@ -28,8 +29,7 @@ impl ForgeApp {
         let mut password = std::mem::take(&mut self.state.loader.password_input);
 
         if password.trim().is_empty() {
-            self.state.loader.error =
-                Some("Ingresa tu contraseña maestra para desbloquear.".to_owned());
+            self.state.loader.error = Some(tr("Enter your master password to unlock."));
             password.zeroize();
             return;
         }
@@ -42,11 +42,11 @@ impl ForgeApp {
                 Ok(vault) => vault.prepare_unlock(password),
                 Err(error) => Err(error),
             },
-            "La preparación del desbloqueo",
+            "Unlock preparation",
         ));
         self.set_banner(
             BannerTone::Info,
-            "Validando la contraseña maestra antes de pedir la verificación adicional de Windows.",
+            tr("Validating the master password before requesting the additional Windows verification."),
         );
     }
 
@@ -80,7 +80,7 @@ impl ForgeApp {
                         self.pending_unlock = Some(pending_unlock);
                         self.set_banner(
                             BannerTone::Info,
-                            "Contraseña correcta. Esperando validación de Windows para abrir el vault.",
+                            tr("Correct password. Waiting for Windows verification to open the vault."),
                         );
                         ctx.request_repaint_after(std::time::Duration::from_millis(100));
                     }
@@ -115,8 +115,8 @@ impl ForgeApp {
                     self.sync_selection();
                     self.state.banner = None;
                     self.state.notice_dialog.show(
-                        "Vault desbloqueado",
-                        "Vault desbloqueado. El acceso quedó validado por tu contraseña maestra y por el sistema operativo.",
+                        tr("Vault unlocked"),
+                        tr("Vault unlocked. Access was validated by your master password and by the operating system."),
                     );
                 }
             }

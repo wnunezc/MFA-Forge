@@ -291,7 +291,7 @@ mod tests {
     use tempfile::TempDir;
     use uuid::Uuid;
 
-    use mfa_forge_core::TotpConfig;
+    use mfa_forge_core::{TotpConfig, test_support::secret_string_from_seed};
     use mfa_forge_storage::VaultRepository;
 
     use super::*;
@@ -319,7 +319,7 @@ mod tests {
             .add_account(
                 "GitHub".to_owned(),
                 "user@example.com".to_owned(),
-                SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+                secret_string_from_seed("stdio-session"),
                 TotpConfig::default(),
             )
             .expect("account should be added");

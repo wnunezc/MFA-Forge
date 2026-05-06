@@ -25,6 +25,7 @@ test = false
 directories.workspace = true
 eframe.workspace = true
 egui.workspace = true
+egui_commonmark = { version = "0.18", features = ["better_syntax_highlighting"] }
 image = { version = "0.25", default-features = false, features = ["bmp", "jpeg", "png"] }
 mfa-forge-application = { path = "../application" }
 mfa-forge-core = { path = "../core" }

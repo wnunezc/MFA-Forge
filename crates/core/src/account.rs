@@ -619,6 +619,8 @@ use secrecy::ExposeSecret;
 mod tests {
     use secrecy::SecretString;
 
+    use crate::test_support::{base32_secret_from_seed, secret_string_from_seed};
+
     use super::{AccountMetadata, AccountRecord, TotpConfig, canonical_identity};
 
     #[test]
@@ -626,7 +628,7 @@ mod tests {
         let account = AccountRecord::new(
             "  GitHub  ",
             "  user@example.com  ",
-            SecretString::from("jbswy3dpehpk3pxp".to_owned()),
+            SecretString::from(base32_secret_from_seed("account-normalize").to_lowercase()),
             TotpConfig::default(),
         )
         .expect("account should be valid");
@@ -645,7 +647,7 @@ mod tests {
         let account = AccountRecord::new(
             "GitHub",
             "user@example.com",
-            SecretString::from("jbswy3dpehpk3pxp".to_owned()),
+            SecretString::from(base32_secret_from_seed("account-update").to_lowercase()),
             TotpConfig::default(),
         )
         .expect("account should be valid");
@@ -671,10 +673,15 @@ mod tests {
 
     #[test]
     fn account_can_be_imported_from_otpauth_uri() {
-        let imported = AccountRecord::from_otpauth_uri(
-            "otpauth://totp/GitHub:user%40example.com?secret=JBSWY3DPEHPK3PXP&issuer=GitHub",
+        let account = AccountRecord::new(
+            "GitHub",
+            "user@example.com",
+            secret_string_from_seed("account-import-uri"),
+            TotpConfig::default(),
         )
-        .expect("otpauth URI should import");
+        .expect("account should be valid");
+        let uri = account.otpauth_uri().expect("uri should build");
+        let imported = AccountRecord::from_otpauth_uri(&uri).expect("otpauth URI should import");
 
         assert_eq!(imported.public.service, "GitHub");
         assert_eq!(imported.public.user, "user@example.com");
@@ -685,7 +692,7 @@ mod tests {
         let imported = AccountRecord::new_with_metadata(
             "GitHub",
             "user@example.com",
-            SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+            secret_string_from_seed("account-metadata"),
             TotpConfig::default(),
             AccountMetadata {
                 labels: vec![" Work ".to_owned(), "work, critical".to_owned()],
@@ -718,7 +725,7 @@ mod tests {
         let account = AccountRecord::new_with_metadata(
             "GitHub",
             "user@example.com",
-            SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+            secret_string_from_seed("account-query"),
             TotpConfig::default(),
             AccountMetadata {
                 labels: vec!["work".to_owned(), "critical".to_owned()],
@@ -744,7 +751,7 @@ mod tests {
         let account = AccountRecord::new(
             "GitHub",
             "user@example.com",
-            SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+            secret_string_from_seed("account-export-uri"),
             TotpConfig::default(),
         )
         .expect("account should be valid");

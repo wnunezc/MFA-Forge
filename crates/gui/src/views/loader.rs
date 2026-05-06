@@ -1,6 +1,6 @@
 use eframe::egui::{self, RichText, TextEdit};
 
-use crate::{app::ForgeApp, state::LoaderMode, theme};
+use crate::{app::ForgeApp, i18n::tr, state::LoaderMode, theme};
 
 pub fn render(ctx: &egui::Context, app: &mut ForgeApp) {
     let palette = theme::palette(app.theme_preference());
@@ -10,13 +10,13 @@ pub fn render(ctx: &egui::Context, app: &mut ForgeApp) {
 
         ui.vertical_centered(|ui| {
             ui.label(
-                RichText::new("MFA-Forge")
+                RichText::new(tr("MFA-Forge"))
                     .size(34.0)
                     .strong()
                     .color(palette.brand_accent),
             );
             ui.label(
-                RichText::new("Developer-first authenticator con vault local cifrado")
+                RichText::new("Developer-first authenticator with an encrypted local vault")
                     .size(15.0)
                     .color(palette.secondary_text),
             );
@@ -26,7 +26,7 @@ pub fn render(ctx: &egui::Context, app: &mut ForgeApp) {
         ui.vertical_centered(|ui| {
             ui.label(
                 RichText::new(
-                    "Storage local | Argon2id + AES-256-GCM | Sin admin | GUI + CLI + API/MCP futuro",
+                    "Local storage | Argon2id + AES-256-GCM | No admin | GUI + CLI + future MCP/API",
                 )
                 .small()
                 .monospace()
@@ -59,36 +59,36 @@ fn left_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
             ui.label(
                 RichText::new(match app.state().loader.current_mode() {
                     LoaderMode::Initialize => {
-                        "Primera ejecución. Crea la contraseña maestra que protegerá el vault."
+                        tr("First run. Create the master password that will protect the vault.")
                     }
                     LoaderMode::Unlock => {
-                        "Desbloquea el vault para acceder a las cuentas y generar tokens."
+                        "Unlock the vault to access accounts and generate tokens.".to_owned()
                     }
                 })
                 .color(palette.secondary_text),
             );
 
             ui.add_space(12.0);
-            ui.label(RichText::new("Ruta del vault").small());
+            ui.label(RichText::new(tr("Vault path")).small());
             ui.add(
                 TextEdit::singleline(&mut app.vault_path().to_owned())
                     .interactive(false)
                     .font(egui::TextStyle::Monospace),
             );
 
-            ui.label(RichText::new("Contraseña maestra").small());
+            ui.label(RichText::new(tr("Master password")).small());
             ui.add(
                 TextEdit::singleline(&mut app.state_mut().loader.password_input)
                     .password(true)
-                    .hint_text("Ingresa una contraseña fuerte"),
+                    .hint_text("Enter a strong password"),
             );
 
             if app.state().loader.current_mode() == LoaderMode::Initialize {
-                ui.label(RichText::new("Confirmar contraseña").small());
+                ui.label(RichText::new("Confirm password").small());
                 ui.add(
                     TextEdit::singleline(&mut app.state_mut().loader.confirm_password_input)
                         .password(true)
-                        .hint_text("Repite la contraseña"),
+                        .hint_text(tr("Repeat the password")),
                 );
             }
 
@@ -101,9 +101,9 @@ fn left_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
                 ui.horizontal(|ui| {
                     ui.spinner();
                     let status = if app.is_unlock_preparing() {
-                        "Validando contraseña maestra y preparando el unlock..."
+                        "Validating the master password and preparing unlock..."
                     } else {
-                        "Esperando validación de Windows (PIN / Hello)..."
+                        "Waiting for Windows verification (PIN / Hello)..."
                     };
                     ui.label(RichText::new(status).small().color(palette.warning_text));
                 });
@@ -113,7 +113,7 @@ fn left_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
             match app.state().loader.current_mode() {
                 LoaderMode::Initialize => {
                     if ui
-                        .add_sized([150.0, 28.0], egui::Button::new("Crear vault"))
+                        .add_sized([150.0, 28.0], egui::Button::new(tr("Create vault")))
                         .clicked()
                     {
                         app.initialize_vault();
@@ -122,7 +122,7 @@ fn left_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
                 LoaderMode::Unlock => {
                     if ui
                         .add_enabled_ui(!app.is_unlock_pending(), |ui| {
-                            ui.add_sized([150.0, 28.0], egui::Button::new("Desbloquear"))
+                            ui.add_sized([150.0, 28.0], egui::Button::new(tr("Unlock")))
                         })
                         .inner
                         .clicked()
@@ -133,14 +133,14 @@ fn left_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
                     if app.is_unlock_preparing() {
                         ui.add_space(6.0);
                         ui.label(
-                            RichText::new("La validación de la contraseña corre en background para no congelar la ventana.")
+                            RichText::new(tr("Password validation runs in the background so the window stays responsive."))
                                 .small()
                                 .color(palette.secondary_text),
                         );
                     } else if app.is_unlock_verifying() {
                         ui.add_space(6.0);
                         ui.label(
-                            RichText::new("El PIN / Windows Hello debería mostrarse fuera de la app.")
+                            RichText::new("The PIN / Windows Hello prompt should appear outside the app.")
                                 .small()
                                 .color(palette.secondary_text),
                         );
@@ -149,7 +149,7 @@ fn left_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
             }
 
             ui.label(
-                RichText::new("El MVP actual no requiere privilegios elevados. Solo usa archivos locales bajo tu perfil de usuario.")
+                RichText::new(tr("The current MVP does not require elevated privileges. It only uses local files under your user profile."))
                     .small()
                     .color(palette.warning_text),
             );
@@ -164,7 +164,7 @@ fn right_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
         .stroke(egui::Stroke::new(1.0, palette.surface_stroke))
         .show(ui, |ui| {
             ui.label(
-                RichText::new("Lo que estás viendo")
+                RichText::new(tr("What you are looking at"))
                     .size(18.0)
                     .strong()
                     .color(palette.brand_accent),
@@ -173,42 +173,46 @@ fn right_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
             bullet(
                 ui,
                 palette,
-                "Loader / unlock",
-                "Pantalla inicial para crear o desbloquear el vault sin exponer secretos.",
+                &tr("Loader / unlock"),
+                "Initial screen to create or unlock the vault without exposing secrets.",
             );
             bullet(
                 ui,
                 palette,
-                "Ventana principal",
-                "Dashboard con lista de cuentas, acciones rápidas, búsqueda y panel de detalles.",
+                &tr("Main window"),
+                "Dashboard with accounts, quick actions, search, and detail context.",
             );
             bullet(
                 ui,
                 palette,
-                "Diálogos",
-                "Alta, import otpauth://, edición, rotación de contraseña, token, export y borrado.",
+                &tr("Dialogs"),
+                "Add, import, edit, password rotation, token, export, and delete flows.",
             );
             bullet(
                 ui,
                 palette,
-                "Roadmap visible",
-                "La GUI ya deja sitio claro para API local y MCP sin requerirlos hoy.",
+                "Visible roadmap",
+                "The GUI already leaves clear room for future local API and MCP integration without requiring them today.",
             );
 
             ui.add_space(14.0);
             ui.separator();
             ui.add_space(8.0);
             ui.label(
-                RichText::new("Seguridad y privilegios")
+                RichText::new(tr("Security and privileges"))
                     .strong()
                     .color(palette.warning_text),
             );
-            ui.label("• El vault vive cifrado en disco.");
-            ui.label("• La UI nunca muestra secretos raw.");
+            ui.label("• The vault remains encrypted on disk.");
+            ui.label("• The UI never shows raw secrets.");
             ui.label(format!("• {}", app.admin_requirement_label()));
             ui.label(
-                "• Futuras integraciones del sistema podrían requerir permisos adicionales, pero no el MVP actual.",
+                "• Future OS integrations may require additional permissions, but not the current MVP.",
             );
+            ui.add_space(10.0);
+            if ui.button(tr("Help")).clicked() {
+                app.open_help_dialog();
+            }
         });
 }
 

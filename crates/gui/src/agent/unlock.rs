@@ -19,7 +19,9 @@ use zeroize::Zeroize;
 use mfa_forge_core::AccountPublic;
 
 use crate::{
-    diagnostics, platform_auth,
+    diagnostics,
+    i18n::{self, tr, trf},
+    platform_auth,
     theme::{self, ThemePreference},
     vault::{PendingUnlockSession, VaultFacade},
 };
@@ -71,6 +73,7 @@ fn request_transient_repaint(ctx: &egui::Context, opened_at: Instant) {
 
 pub fn run_unlock_window() -> Result<VaultFacade, String> {
     let theme_preference = theme::load_preference();
+    i18n::init(theme::load_language_preference());
     let outcome = Rc::new(RefCell::new(None));
     let app_icon =
         eframe::icon_data::from_png_bytes(include_bytes!("../../assets/icons/app-icon.png"))
@@ -103,9 +106,10 @@ pub fn run_unlock_window() -> Result<VaultFacade, String> {
 
     platform_auth::settle_closed_prompt_window();
 
-    outcome.borrow_mut().take().unwrap_or_else(|| {
-        Err("El acceso fue cancelado antes de abrir la sesión de agente.".to_owned())
-    })
+    outcome
+        .borrow_mut()
+        .take()
+        .unwrap_or_else(|| Err(tr("Access was canceled before opening the agent session.")))
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -141,6 +145,7 @@ pub fn run_generate_token_grant_window(
         format!("ttl_seconds={ttl_seconds} account_id={}", account.id),
     );
     let theme_preference = theme::load_preference();
+    i18n::init(theme::load_language_preference());
     let outcome = Rc::new(RefCell::new(None));
     let app_icon =
         eframe::icon_data::from_png_bytes(include_bytes!("../../assets/icons/app-icon.png"))
@@ -194,6 +199,7 @@ pub fn run_account_provisioning_grant_window(
         format!("account_limit={account_limit} ttl_minutes={ttl_minutes}"),
     );
     let theme_preference = theme::load_preference();
+    i18n::init(theme::load_language_preference());
     let outcome = Rc::new(RefCell::new(None));
     let app_icon =
         eframe::icon_data::from_png_bytes(include_bytes!("../../assets/icons/app-icon.png"))
@@ -246,6 +252,7 @@ pub fn run_audit_reporting_grant_window(
         format!("read_limit={read_limit} ttl_minutes={ttl_minutes}"),
     );
     let theme_preference = theme::load_preference();
+    i18n::init(theme::load_language_preference());
     let outcome = Rc::new(RefCell::new(None));
     let app_icon =
         eframe::icon_data::from_png_bytes(include_bytes!("../../assets/icons/app-icon.png"))
@@ -295,6 +302,7 @@ pub fn run_audit_reporting_grant_window(
 pub fn run_password_rotation_window() -> Result<PasswordRotationPromptDecision, String> {
     ui_trace("password_rotation.start", "prompt=opened");
     let theme_preference = theme::load_preference();
+    i18n::init(theme::load_language_preference());
     let outcome = Rc::new(RefCell::new(None));
     let app_icon =
         eframe::icon_data::from_png_bytes(include_bytes!("../../assets/icons/app-icon.png"))
@@ -540,13 +548,13 @@ impl PasswordRotationApprovalApp {
 
     fn approve(&mut self, ctx: &egui::Context) {
         if self.new_password.trim().is_empty() {
-            self.error = Some("La nueva contraseña maestra no puede estar vacía.".to_owned());
+            self.error = Some(tr("The new master password cannot be empty."));
             self.confirm_password.zeroize();
             return;
         }
 
         if self.new_password != self.confirm_password {
-            self.error = Some("La confirmación de la nueva contraseña no coincide.".to_owned());
+            self.error = Some(tr("The new password confirmation does not match."));
             self.new_password.zeroize();
             self.confirm_password.zeroize();
             return;
@@ -606,11 +614,11 @@ impl eframe::App for TokenGrantApprovalApp {
             .show(ctx, |ui| {
                 let available = ui.available_size();
                 ui.allocate_ui_with_layout(available, Layout::right_to_left(Align::Center), |ui| {
-                    if ui.button("Aprobar una vez").clicked() {
+                    if ui.button(tr("Approve once")).clicked() {
                         self.approve(ctx);
                     }
 
-                    if ui.button("Denegar").clicked() {
+                    if ui.button(tr("Deny")).clicked() {
                         self.deny(ctx);
                     }
                 });
@@ -626,17 +634,17 @@ impl eframe::App for TokenGrantApprovalApp {
                     ui.heading("MFA-Forge Token Grant");
                     ui.add_space(8.0);
                     ui.label(
-                        "Esta aprobación permite entregar un solo TOTP por MCP. El secreto no se expone y el grant vence rápido si no se usa.",
+                        tr("This approval allows a single TOTP to be delivered through MCP. The secret is not exposed and the grant expires quickly if it is not used."),
                     );
                     ui.add_space(10.0);
-                    ui.label(RichText::new("Cuenta solicitada").strong());
-                    ui.monospace(format!("Servicio: {}", self.account.service));
-                    ui.monospace(format!("Usuario: {}", self.account.user));
-                    ui.monospace(format!("Cuenta: {}", self.account.id));
+                    ui.label(RichText::new(tr("Requested account")).strong());
+                    ui.monospace(trf("Service: {value}", &[("value", &self.account.service)]));
+                    ui.monospace(trf("User: {value}", &[("value", &self.account.user)]));
+                    ui.monospace(trf("Account: {value}", &[("value", &self.account.id.to_string())]));
                     ui.add_space(6.0);
-                    ui.label(format!(
-                        "Si apruebas, este proceso podrá generar un solo token para esa cuenta durante los próximos {} segundos.",
-                        self.ttl_seconds
+                    ui.label(trf(
+                        "If you approve, this process will be able to generate a single token for that account during the next {seconds} seconds.",
+                        &[("seconds", &self.ttl_seconds.to_string())],
                     ));
                 });
             });
@@ -675,11 +683,11 @@ impl eframe::App for ProvisioningGrantApprovalApp {
             .show(ctx, |ui| {
                 let available = ui.available_size();
                 ui.allocate_ui_with_layout(available, Layout::right_to_left(Align::Center), |ui| {
-                    if ui.button("Aprobar grant").clicked() {
+                    if ui.button(tr("Approve grant")).clicked() {
                         self.approve(ctx);
                     }
 
-                    if ui.button("Denegar").clicked() {
+                    if ui.button(tr("Deny")).clicked() {
                         self.deny(ctx);
                     }
                 });
@@ -695,15 +703,18 @@ impl eframe::App for ProvisioningGrantApprovalApp {
                     ui.heading("MFA-Forge Provisioning Grant");
                     ui.add_space(8.0);
                     ui.label(
-                        "Esta aprobación permite aprovisionar nuevas cuentas MFA por MCP sin intervención adicional hasta agotar una cuota corta. Los secretos se aceptan como input, pero no se devuelven ni se registran en el audit log.",
+                        tr("This approval allows new MFA accounts to be provisioned through MCP without additional intervention until a short quota is exhausted. Secrets are accepted as input, but they are not returned or written to the audit log."),
                     );
                     ui.add_space(10.0);
-                    ui.label(RichText::new("Alcance del grant").strong());
-                    ui.monospace("Tools permitidas: create_account, import_otpauth, update_account, remove_account");
+                    ui.label(RichText::new(tr("Grant scope")).strong());
+                    ui.monospace("Allowed tools: create_account, import_otpauth, update_account, remove_account");
                     ui.add_space(6.0);
-                    ui.label(format!(
-                        "Si apruebas, este proceso MCP podrá crear, importar, actualizar o eliminar hasta {} cuentas durante los próximos {} minutos.",
-                        self.account_limit, self.ttl_minutes
+                    ui.label(trf(
+                        "If you approve, this MCP process will be able to create, import, update, or remove up to {accounts} accounts during the next {minutes} minutes.",
+                        &[
+                            ("accounts", &self.account_limit.to_string()),
+                            ("minutes", &self.ttl_minutes.to_string()),
+                        ],
                     ));
                 });
             });
@@ -742,11 +753,11 @@ impl eframe::App for AuditReportingGrantApprovalApp {
             .show(ctx, |ui| {
                 let available = ui.available_size();
                 ui.allocate_ui_with_layout(available, Layout::right_to_left(Align::Center), |ui| {
-                    if ui.button("Aprobar grant").clicked() {
+                    if ui.button(tr("Approve grant")).clicked() {
                         self.approve(ctx);
                     }
 
-                    if ui.button("Denegar").clicked() {
+                    if ui.button(tr("Deny")).clicked() {
                         self.deny(ctx);
                     }
                 });
@@ -762,15 +773,18 @@ impl eframe::App for AuditReportingGrantApprovalApp {
                         ui.heading("MFA-Forge Audit Reporting Grant");
                         ui.add_space(8.0);
                         ui.label(
-                            "Esta aprobación permite revisar historial público del vault y el audit log local reciente sin abrir nuevas superficies. El grant vence rápido y usa una cuota corta de lecturas.",
+                            tr("This approval allows review of the vault public history and the recent local audit log without opening new surfaces. The grant expires quickly and uses a short read quota."),
                         );
                         ui.add_space(10.0);
-                        ui.label(RichText::new("Alcance del grant").strong());
-                        ui.monospace("Tools permitidas: list_history, read_audit_events, summarize_audit_events");
+                        ui.label(RichText::new(tr("Grant scope")).strong());
+                        ui.monospace("Allowed tools: list_history, read_audit_events, summarize_audit_events");
                         ui.add_space(6.0);
-                        ui.label(format!(
-                            "Si apruebas, este proceso MCP podrá ejecutar hasta {} lecturas sensibles durante los próximos {} minutos.",
-                            self.read_limit, self.ttl_minutes
+                        ui.label(trf(
+                            "If you approve, this MCP process will be able to perform up to {reads} sensitive reads during the next {minutes} minutes.",
+                            &[
+                                ("reads", &self.read_limit.to_string()),
+                                ("minutes", &self.ttl_minutes.to_string()),
+                            ],
                         ));
                     });
                 });
@@ -803,11 +817,11 @@ impl eframe::App for PasswordRotationApprovalApp {
             .show(ctx, |ui| {
                 let available = ui.available_size();
                 ui.allocate_ui_with_layout(available, Layout::right_to_left(Align::Center), |ui| {
-                    if ui.button("Ejecutar rotación real").clicked() {
+                    if ui.button(tr("Execute real rotation")).clicked() {
                         self.approve(ctx);
                     }
 
-                    if ui.button("Denegar").clicked() {
+                    if ui.button(tr("Deny")).clicked() {
                         self.deny(ctx);
                     }
                 });
@@ -819,32 +833,32 @@ impl eframe::App for PasswordRotationApprovalApp {
                 .show(ui, |ui| {
                     ui.set_width(ui.available_width());
                     ui.with_layout(Layout::top_down(Align::Min), |ui| {
-                        ui.add_space(4.0);
-                        ui.heading("MFA-Forge Password Rotation");
-                        ui.add_space(8.0);
-                        ui.label(
-                            "Esta aprobación ejecuta una rotación real de la contraseña maestra y re-cifra el vault actual de inmediato. La nueva contraseña se captura solo en esta ventana nativa y no viaja por stdio ni por MCP.",
-                        );
-                        ui.add_space(6.0);
-                        ui.label(
-                            RichText::new(
-                                "Si apruebas, la contraseña anterior deja de servir para este vault. No es una simulación ni una prueba.",
-                            )
-                            .strong()
-                            .color(Color32::from_rgb(255, 214, 102)),
-                        );
-                        ui.add_space(10.0);
-                        ui.label(RichText::new("Nueva contraseña maestra").strong());
-                        let new_password = ui.add(
-                            TextEdit::singleline(&mut self.new_password)
-                                .password(true)
-                                .hint_text("Nueva contraseña"),
-                        );
-                        let confirm_password = ui.add(
-                            TextEdit::singleline(&mut self.confirm_password)
-                                .password(true)
-                                .hint_text("Confirmar nueva contraseña"),
-                        );
+                    ui.add_space(4.0);
+                    ui.heading("MFA-Forge Password Rotation");
+                    ui.add_space(8.0);
+                    ui.label(
+                        tr("This approval executes a real master-password rotation and re-encrypts the current vault immediately. The new password is captured only in this native window and never travels through stdio or MCP."),
+                    );
+                    ui.add_space(6.0);
+                    ui.label(
+                        RichText::new(
+                            tr("If you approve, the previous password stops working for this vault. This is not a simulation or a test."),
+                        )
+                        .strong()
+                        .color(Color32::from_rgb(255, 214, 102)),
+                    );
+                    ui.add_space(10.0);
+                    ui.label(RichText::new(tr("New master password")).strong());
+                    let new_password = ui.add(
+                        TextEdit::singleline(&mut self.new_password)
+                            .password(true)
+                            .hint_text(tr("New password")),
+                    );
+                    let confirm_password = ui.add(
+                        TextEdit::singleline(&mut self.confirm_password)
+                            .password(true)
+                            .hint_text(tr("Confirm new password")),
+                    );
 
                         if (new_password.lost_focus() || confirm_password.lost_focus())
                             && ui.input(|input| input.key_pressed(egui::Key::Enter))
@@ -858,7 +872,7 @@ impl eframe::App for PasswordRotationApprovalApp {
                         } else {
                             ui.add_space(6.0);
                             ui.label(
-                                "La sesión ya desbloqueada se reutiliza para re-cifrar el vault de forma local. Si deniegas, no se aplica ningún cambio.",
+                                tr("The already unlocked session is reused to re-encrypt the vault locally. If you deny it, no change is applied."),
                             );
                         }
                     });
@@ -916,8 +930,7 @@ impl AgentUnlockApp {
                 "agent_session.submit_unlock_empty_password",
                 "rejected=true",
             );
-            self.error =
-                Some("Ingresa la contraseña maestra para abrir la sesión del agente.".to_owned());
+            self.error = Some(tr("Enter the master password to open the agent session."));
             password.zeroize();
             return;
         }
@@ -925,7 +938,7 @@ impl AgentUnlockApp {
         let password = SecretString::from(std::mem::take(&mut password));
         if self.vault.is_none() {
             ui_trace("agent_session.submit_unlock_missing_vault", "rejected=true");
-            self.error = Some("La sesión de agente no pudo inicializar el vault.".to_owned());
+            self.error = Some(tr("The agent session could not initialize the vault."));
             return;
         }
 
@@ -940,7 +953,7 @@ impl AgentUnlockApp {
                 Ok(vault) => vault.prepare_unlock(password),
                 Err(error) => Err(error),
             },
-            "La preparación del unlock",
+            "Unlock preparation",
         ));
         ctx.request_repaint_after(Duration::from_millis(100));
     }
@@ -949,9 +962,9 @@ impl AgentUnlockApp {
         ui_trace("agent_session.cancel_clicked", "status=cancelled");
         self.password_input.zeroize();
         self.password_input.clear();
-        *self.outcome.borrow_mut() = Some(Err(
-            "El usuario canceló la apertura de la sesión de agente.".to_owned(),
-        ));
+        *self.outcome.borrow_mut() = Some(Err(tr(
+            "The user canceled the opening of the agent session.",
+        )));
         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
     }
 
@@ -1061,11 +1074,11 @@ impl eframe::App for AgentUnlockApp {
                 ui.heading("MFA-Forge Agent Session");
                 ui.add_space(8.0);
                 ui.label(
-                    "Esta ventana otorga una sesión temporal para un agente local. La sesión queda abierta solo mientras el proceso siga vivo.",
+                    tr("This window grants a temporary session for a local agent. The session stays open only while the process remains alive."),
                 );
                 ui.label(
                     RichText::new(
-                        "La validación adicional de Windows sigue implementada, pero continúa en revisión hasta confirmar estabilidad.",
+                        tr("The additional Windows verification remains implemented, but it is still under review until stability is confirmed."),
                     )
                     .color(Color32::from_rgb(181, 208, 255)),
                 );
@@ -1075,7 +1088,7 @@ impl eframe::App for AgentUnlockApp {
                     !is_busy,
                     TextEdit::singleline(&mut self.password_input)
                         .password(true)
-                        .hint_text("Contraseña maestra"),
+                        .hint_text(tr("Master password")),
                 );
 
                 if password_input.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
@@ -1089,26 +1102,26 @@ impl eframe::App for AgentUnlockApp {
                     ui.add_space(6.0);
                     ui.colored_label(
                         Color32::from_rgb(181, 208, 255),
-                        "Validando la contraseña contra el vault y preparando la verificación adicional.",
+                        tr("Validating the password against the vault and preparing the additional verification."),
                     );
                 } else if self.pending_unlock.is_some() {
                     ui.add_space(6.0);
                     ui.colored_label(
                         Color32::from_rgb(181, 208, 255),
-                        "Contraseña correcta. Esperando la validación adicional del sistema operativo.",
+                        tr("Correct password. Waiting for the additional operating-system verification."),
                     );
                 }
 
                 ui.add_space(16.0);
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if ui
-                        .add_enabled(!is_busy, egui::Button::new("Desbloquear"))
+                        .add_enabled(!is_busy, egui::Button::new(tr("Unlock")))
                         .clicked()
                     {
                         self.submit_unlock(ctx);
                     }
 
-                    if ui.button("✖ Cancelar").clicked() {
+                    if ui.button(format!("✖ {}", tr("Cancel"))).clicked() {
                         self.cancel(ctx);
                     }
                 });

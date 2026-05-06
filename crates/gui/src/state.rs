@@ -6,6 +6,7 @@ use mfa_forge_core::{
 use uuid::Uuid;
 use zeroize::Zeroize;
 
+use crate::i18n::{Language, tr};
 use crate::theme::ThemePreference;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,10 +51,10 @@ impl WorkspaceScope {
         }
     }
 
-    pub fn label(&self) -> &str {
+    pub fn label(&self) -> String {
         match self {
-            Self::Unassigned => "Sin workspace",
-            Self::Directory(path) => path.as_str(),
+            Self::Unassigned => tr("No workspace"),
+            Self::Directory(path) => path.clone(),
         }
     }
 
@@ -175,12 +176,12 @@ impl AccountFormState {
             .digits
             .trim()
             .parse::<u32>()
-            .map_err(|_| "Los dígitos TOTP deben ser un número válido.".to_owned())?;
+            .map_err(|_| "TOTP digits must be a valid number.".to_owned())?;
         let period_seconds = self
             .period_seconds
             .trim()
             .parse::<u64>()
-            .map_err(|_| "El período TOTP debe ser un número válido.".to_owned())?;
+            .map_err(|_| "The TOTP period must be a valid number.".to_owned())?;
 
         let config = TotpConfig {
             algorithm: self.algorithm,
@@ -522,11 +523,31 @@ impl NoticeDialogState {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct HelpDialogState {
+    pub open: bool,
+    pub search_query: String,
+    pub selected_section: Option<usize>,
+}
+
+impl HelpDialogState {
+    pub fn open(&mut self) {
+        self.open = true;
+    }
+
+    pub fn close(&mut self) {
+        self.open = false;
+        self.search_query.clear();
+        self.selected_section = None;
+    }
+}
+
 #[derive(Debug)]
 pub struct AppState {
     pub screen: Screen,
     pub loader: LoaderState,
     pub theme_preference: ThemePreference,
+    pub language: Language,
     pub search_query: String,
     pub workspace_scope: WorkspaceScope,
     pub selected_account_id: Option<Uuid>,
@@ -546,11 +567,12 @@ pub struct AppState {
     pub export_dialog: ExportDialogState,
     pub account_uri_dialog: AccountUriDialogState,
     pub notice_dialog: NoticeDialogState,
+    pub help_dialog: HelpDialogState,
     pub search: SearchState,
 }
 
 impl AppState {
-    pub fn new(vault_exists: bool, theme_preference: ThemePreference) -> Self {
+    pub fn new(vault_exists: bool, theme_preference: ThemePreference, language: Language) -> Self {
         Self {
             screen: Screen::Loader,
             loader: LoaderState {
@@ -562,6 +584,7 @@ impl AppState {
                 ..Default::default()
             },
             theme_preference,
+            language,
             search_query: String::new(),
             workspace_scope: WorkspaceScope::Unassigned,
             selected_account_id: None,
@@ -581,6 +604,7 @@ impl AppState {
             export_dialog: ExportDialogState::default(),
             account_uri_dialog: AccountUriDialogState::default(),
             notice_dialog: NoticeDialogState::default(),
+            help_dialog: HelpDialogState::default(),
             search: SearchState::default(),
         }
     }

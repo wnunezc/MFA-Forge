@@ -6,6 +6,8 @@ mod app_tasks;
 mod app_unlock;
 pub mod diagnostics;
 mod dialogs;
+mod help;
+pub mod i18n;
 pub mod platform_auth;
 mod qr_import;
 mod runtime;

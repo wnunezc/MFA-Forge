@@ -659,6 +659,7 @@ mod tests {
 
     use mfa_forge_core::{
         AccountHistoryEvent, AccountMetadata, AccountRecord, AccountSelector, TotpConfig,
+        test_support::{base32_secret_from_seed, secret_string_from_seed},
     };
 
     use crate::{
@@ -686,7 +687,7 @@ mod tests {
         let account = AccountRecord::new(
             "GitHub",
             "user@example.com",
-            SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+            secret_string_from_seed("repository-primary"),
             TotpConfig::default(),
         )
         .expect("account should be valid");
@@ -697,7 +698,7 @@ mod tests {
 
         let file_contents =
             fs::read_to_string(repository.path()).expect("vault file should be readable");
-        assert!(!file_contents.contains("JBSWY3DPEHPK3PXP"));
+        assert!(!file_contents.contains(&base32_secret_from_seed("repository-primary")));
 
         let accounts = repository
             .list_accounts(&password)
@@ -712,7 +713,7 @@ mod tests {
         let account = AccountRecord::new(
             "GitHub",
             "user@example.com",
-            SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+            secret_string_from_seed("repository-primary"),
             TotpConfig::default(),
         )
         .expect("account should be valid");
@@ -740,14 +741,14 @@ mod tests {
         let github = AccountRecord::new(
             "GitHub",
             "user@example.com",
-            SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+            secret_string_from_seed("repository-primary"),
             TotpConfig::default(),
         )
         .expect("github account should be valid");
         let gitlab = AccountRecord::new(
             "GitLab",
             "dev@example.com",
-            SecretString::from("KRSXG5DSNFXGOIDB".to_owned()),
+            secret_string_from_seed("repository-secondary"),
             TotpConfig::default(),
         )
         .expect("gitlab account should be valid");
@@ -763,8 +764,8 @@ mod tests {
         assert!(backup_path.exists(), "backup snapshot should exist");
 
         let backup_contents = fs::read_to_string(&backup_path).expect("backup should be readable");
-        assert!(!backup_contents.contains("JBSWY3DPEHPK3PXP"));
-        assert!(!backup_contents.contains("KRSXG5DSNFXGOIDB"));
+        assert!(!backup_contents.contains(&base32_secret_from_seed("repository-primary")));
+        assert!(!backup_contents.contains(&base32_secret_from_seed("repository-secondary")));
 
         fs::write(repository.path(), "corrupted vault").expect("main vault should be corrupted");
 
@@ -785,7 +786,7 @@ mod tests {
         let account = AccountRecord::new(
             "GitHub",
             "user@example.com",
-            SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+            secret_string_from_seed("repository-primary"),
             TotpConfig::default(),
         )
         .expect("account should be valid");
@@ -846,7 +847,7 @@ mod tests {
         let account = AccountRecord::new(
             "GitHub",
             "user@example.com",
-            SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+            secret_string_from_seed("repository-primary"),
             TotpConfig::default(),
         )
         .expect("account should be valid");
@@ -878,7 +879,7 @@ mod tests {
                 AccountRecord::new(
                     "GitHub",
                     "user@example.com",
-                    SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+                    secret_string_from_seed("repository-primary"),
                     TotpConfig::default(),
                 )
                 .expect("existing account should be valid"),
@@ -889,14 +890,14 @@ mod tests {
             AccountRecord::new(
                 "GitLab",
                 "dev@example.com",
-                SecretString::from("KRSXG5DSNFXGOIDB".to_owned()),
+                secret_string_from_seed("repository-secondary"),
                 TotpConfig::default(),
             )
             .expect("first batch account should be valid"),
             AccountRecord::new(
                 "GitHub",
                 "user@example.com",
-                SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+                secret_string_from_seed("repository-primary"),
                 TotpConfig::default(),
             )
             .expect("duplicate batch account should be valid before persistence"),
@@ -926,7 +927,7 @@ mod tests {
                 AccountRecord::new(
                     "GitHub",
                     "user@example.com",
-                    SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+                    secret_string_from_seed("repository-primary"),
                     TotpConfig::default(),
                 )
                 .expect("account should be valid"),
@@ -974,7 +975,7 @@ mod tests {
                 AccountRecord::new(
                     "GitHub",
                     "user@example.com",
-                    SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+                    secret_string_from_seed("repository-primary"),
                     TotpConfig::default(),
                 )
                 .expect("account should be valid"),
@@ -1010,7 +1011,7 @@ mod tests {
                 AccountRecord::new(
                     "GitHub",
                     "user1@example.com",
-                    SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+                    secret_string_from_seed("repository-primary"),
                     TotpConfig::default(),
                 )
                 .expect("first account should be valid"),
@@ -1022,7 +1023,7 @@ mod tests {
                 AccountRecord::new(
                     "GitLab",
                     "user2@example.com",
-                    SecretString::from("KRSXG5DSNFXGOIDB".to_owned()),
+                    secret_string_from_seed("repository-secondary"),
                     TotpConfig::default(),
                 )
                 .expect("second account should be valid"),
@@ -1124,7 +1125,7 @@ mod tests {
                 AccountRecord::new(
                     "GitHub",
                     "user1@example.com",
-                    SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+                    secret_string_from_seed("repository-primary"),
                     TotpConfig::default(),
                 )
                 .expect("first account should be valid"),
@@ -1136,7 +1137,7 @@ mod tests {
                 AccountRecord::new(
                     "GitLab",
                     "user2@example.com",
-                    SecretString::from("KRSXG5DSNFXGOIDB".to_owned()),
+                    secret_string_from_seed("repository-secondary"),
                     TotpConfig::default(),
                 )
                 .expect("second account should be valid"),
@@ -1173,7 +1174,7 @@ mod tests {
                 AccountRecord::new(
                     "GitHub",
                     "user1@example.com",
-                    SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+                    secret_string_from_seed("repository-primary"),
                     TotpConfig::default(),
                 )
                 .expect("first account should be valid"),
@@ -1185,7 +1186,7 @@ mod tests {
                 AccountRecord::new(
                     "GitLab",
                     "user2@example.com",
-                    SecretString::from("KRSXG5DSNFXGOIDB".to_owned()),
+                    secret_string_from_seed("repository-secondary"),
                     TotpConfig::default(),
                 )
                 .expect("second account should be valid"),
@@ -1226,7 +1227,7 @@ mod tests {
         let account = AccountRecord::new(
             "GitHub",
             "user@example.com",
-            SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+            secret_string_from_seed("repository-primary"),
             TotpConfig::default(),
         )
         .expect("account should be valid");
@@ -1282,7 +1283,7 @@ mod tests {
         let account = AccountRecord::new(
             "GitHub",
             "user@example.com",
-            SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+            secret_string_from_seed("repository-primary"),
             TotpConfig::default(),
         )
         .expect("account should be valid");
@@ -1296,7 +1297,7 @@ mod tests {
             .expect("vault export should succeed");
 
         let exported = fs::read_to_string(&destination).expect("export should be readable");
-        assert!(!exported.contains("JBSWY3DPEHPK3PXP"));
+        assert!(!exported.contains(&base32_secret_from_seed("repository-primary")));
     }
 
     #[test]
@@ -1315,7 +1316,7 @@ mod tests {
                 AccountRecord::new(
                     "GitLab",
                     "dev@example.com",
-                    SecretString::from("KRSXG5DSNFXGOIDB".to_owned()),
+                    secret_string_from_seed("repository-secondary"),
                     TotpConfig::default(),
                 )
                 .expect("backup account should be valid"),

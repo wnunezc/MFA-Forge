@@ -6,27 +6,29 @@ use mfa_forge_core::TotpToken;
 
 use crate::{
     app::ForgeApp,
+    i18n::{self, Language, tr},
     state::{AppState, Banner, BannerTone, LoaderMode, Screen},
     theme,
 };
 
 const STATUS_BAR_HEIGHT: f32 = 42.0;
 const STATUS_BAR_ROW_HEIGHT: f32 = 28.0;
-const STATUS_BAR_RIGHT_WIDTH: f32 = 132.0;
+const STATUS_BAR_RIGHT_WIDTH: f32 = 304.0;
 const STATUS_BAR_LEFT_WIDTH: f32 = 520.0;
 const STATUS_BAR_THEME_WIDTH: f32 = 132.0;
+const STATUS_BAR_LANGUAGE_WIDTH: f32 = 148.0;
 const STATUS_BAR_SECTION_GAP: f32 = 14.0;
 
 impl ForgeApp {
-    pub fn loader_mode_label(&self) -> &'static str {
+    pub fn loader_mode_label(&self) -> String {
         match self.state.loader.mode {
-            LoaderMode::Initialize => "Inicializar vault",
-            LoaderMode::Unlock => "Desbloquear vault",
+            LoaderMode::Initialize => tr("Initialize vault"),
+            LoaderMode::Unlock => tr("Unlock vault"),
         }
     }
 
-    pub fn admin_requirement_label(&self) -> &'static str {
-        "Privilegios elevados: no requeridos para este alcance"
+    pub fn admin_requirement_label(&self) -> String {
+        tr("Elevated privileges: not required for this scope")
     }
 
     pub fn theme_preference(&self) -> theme::ThemePreference {
@@ -43,6 +45,10 @@ impl ForgeApp {
 
     pub fn state_mut(&mut self) -> &mut AppState {
         &mut self.state
+    }
+
+    pub fn open_help_dialog(&mut self) {
+        self.state.help_dialog.open();
     }
 
     pub fn set_banner(&mut self, tone: BannerTone, message: impl Into<String>) {
@@ -67,7 +73,23 @@ impl ForgeApp {
         if let Err(error) = theme::save_preference(preference) {
             self.set_banner(
                 BannerTone::Warning,
-                format!("El tema se aplicó, pero no se pudo guardar la preferencia: {error}"),
+                format!("The theme was applied, but the preference could not be saved: {error}"),
+            );
+        }
+    }
+
+    pub fn set_language_preference(&mut self, preference: Language) {
+        if self.state.language == preference {
+            return;
+        }
+
+        self.state.language = preference;
+        i18n::set_language(preference);
+
+        if let Err(error) = theme::save_language_preference(preference) {
+            self.set_banner(
+                BannerTone::Warning,
+                format!("The language was applied, but the preference could not be saved: {error}"),
             );
         }
     }
@@ -76,7 +98,9 @@ impl ForgeApp {
         let ctx = ui.ctx().clone();
         let palette = theme::palette(self.state.theme_preference);
         let current_theme = self.state.theme_preference;
+        let current_language = self.state.language;
         let mut selected_theme = current_theme;
+        let mut selected_language = current_language;
         let visible_accounts = self.visible_accounts().len();
         let total_accounts = self.total_accounts();
         let workspace_label = self.state.workspace_scope.label();
@@ -115,26 +139,31 @@ impl ForgeApp {
                                     ui.spacing_mut().item_spacing = egui::vec2(8.0, 4.0);
                                     status_item(
                                         ui,
-                                        "Vault",
-                                        self.vault_status_label(),
+                                        &tr("Vault"),
+                                        &tr(self.vault_status_label()),
                                         palette.status_text,
                                     );
                                     status_separator(ui, palette.status_stroke);
                                     status_item(
                                         ui,
-                                        "Cuentas",
+                                        &tr("Accounts"),
                                         &total_accounts.to_string(),
                                         palette.status_text,
                                     );
                                     status_separator(ui, palette.status_stroke);
                                     status_item(
                                         ui,
-                                        "Visibles",
+                                        &tr("Visible"),
                                         &visible_accounts.to_string(),
                                         palette.status_text,
                                     );
                                     status_separator(ui, palette.status_stroke);
-                                    status_item(ui, "Ámbito", workspace_label, palette.status_text);
+                                    status_item(
+                                        ui,
+                                        &tr("Scope"),
+                                        &workspace_label,
+                                        palette.status_text,
+                                    );
                                 });
                             },
                         );
@@ -159,6 +188,8 @@ impl ForgeApp {
                             |ui| {
                                 ui.spacing_mut().interact_size.y = STATUS_BAR_ROW_HEIGHT;
                                 theme_selector_ui(ui, &mut selected_theme);
+                                ui.add_space(8.0);
+                                language_selector_ui(ui, &mut selected_language);
                             },
                         );
                     },
@@ -167,6 +198,9 @@ impl ForgeApp {
 
         if selected_theme != current_theme {
             self.set_theme_preference(&ctx, selected_theme);
+        }
+        if selected_language != current_language {
+            self.set_language_preference(selected_language);
         }
     }
 
@@ -199,8 +233,7 @@ impl ForgeApp {
 
         if should_refresh && self.pending_token_job.is_none() {
             self.state.token_dialog.pending = true;
-            self.state.token_dialog.action_message =
-                Some("Actualizando la ventana TOTP...".to_owned());
+            self.state.token_dialog.action_message = Some("Updating the TOTP window...".to_owned());
             self.state.token_dialog.action_tone = Some(BannerTone::Info);
             self.request_token_for(account, self.state.token_dialog.token.clone());
         }
@@ -240,19 +273,25 @@ fn status_separator(ui: &mut egui::Ui, color: egui::Color32) {
 
 fn theme_selector_ui(ui: &mut egui::Ui, selected_theme: &mut theme::ThemePreference) {
     egui::ComboBox::from_id_salt("status_bar_theme_selector")
-        .selected_text(selected_theme.label())
+        .selected_text(match selected_theme {
+            theme::ThemePreference::Dark => tr("Dark"),
+            theme::ThemePreference::Light => tr("Light"),
+        })
         .width(STATUS_BAR_THEME_WIDTH)
         .show_ui(ui, |ui| {
-            ui.selectable_value(
-                selected_theme,
-                theme::ThemePreference::Dark,
-                theme::ThemePreference::Dark.label(),
-            );
-            ui.selectable_value(
-                selected_theme,
-                theme::ThemePreference::Light,
-                theme::ThemePreference::Light.label(),
-            );
+            ui.selectable_value(selected_theme, theme::ThemePreference::Dark, tr("Dark"));
+            ui.selectable_value(selected_theme, theme::ThemePreference::Light, tr("Light"));
+        });
+}
+
+fn language_selector_ui(ui: &mut egui::Ui, selected_language: &mut Language) {
+    egui::ComboBox::from_id_salt("status_bar_language_selector")
+        .selected_text(selected_language.native_name())
+        .width(STATUS_BAR_LANGUAGE_WIDTH)
+        .show_ui(ui, |ui| {
+            for language in Language::all() {
+                ui.selectable_value(selected_language, *language, language.native_name());
+            }
         });
 }
 
@@ -273,7 +312,7 @@ fn status_banner(
         }
         None => match screen {
             Screen::Loader => Some((
-                "Esperando inicialización o desbloqueo del vault.".to_owned(),
+                tr("Waiting for vault initialization or unlock."),
                 palette.status_idle_text,
             )),
             Screen::Main => None,

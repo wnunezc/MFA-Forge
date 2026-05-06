@@ -33,7 +33,7 @@ impl<T> PendingTask<T> {
             Ok(result) => PendingPoll::Finished(result),
             Err(TryRecvError::Empty) => PendingPoll::Pending,
             Err(TryRecvError::Disconnected) => {
-                PendingPoll::Finished(Err("La tarea en segundo plano se interrumpió.".to_owned()))
+                PendingPoll::Finished(Err("The background task was interrupted.".to_owned()))
             }
         }
     }
@@ -170,7 +170,7 @@ pub(crate) fn spawn_import_file_job(
     spawn_task(move || {
         let uri = fs::read_to_string(&file_path).map_err(|error| {
             format!(
-                "No se pudo leer el archivo de cuenta {}: {error}",
+                "The account file {} could not be read: {error}",
                 file_path.display()
             )
         })?;
@@ -240,7 +240,7 @@ pub(crate) fn spawn_export_account_qr_job(
         let vault = unlocked_vault(&password)?;
         let uri = vault.export_account_uri(&account)?;
         let qr_code = QrCode::new(uri.as_bytes())
-            .map_err(|error| format!("No se pudo generar el QR de la cuenta: {error}"))?;
+            .map_err(|error| format!("The account QR could not be generated: {error}"))?;
         let image = qr_code
             .render::<Luma<u8>>()
             .min_dimensions(320, 320)
@@ -249,7 +249,7 @@ pub(crate) fn spawn_export_account_qr_job(
         if let Some(parent) = destination.parent() {
             fs::create_dir_all(parent).map_err(|error| {
                 format!(
-                    "No se pudo preparar la carpeta destino {}: {error}",
+                    "The destination folder {} could not be prepared: {error}",
                     parent.display()
                 )
             })?;
@@ -257,7 +257,7 @@ pub(crate) fn spawn_export_account_qr_job(
 
         image.save(&destination).map_err(|error| {
             format!(
-                "No se pudo guardar el QR de la cuenta en {}: {error}",
+                "The account QR could not be saved to {}: {error}",
                 destination.display()
             )
         })?;
@@ -368,19 +368,19 @@ fn write_text_file(path: &Path, contents: &str) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|error| {
             format!(
-                "No se pudo preparar la carpeta destino {}: {error}",
+                "The destination folder {} could not be prepared: {error}",
                 parent.display()
             )
         })?;
     }
 
     let mut file = fs::File::create(path)
-        .map_err(|error| format!("No se pudo crear el archivo {}: {error}", path.display()))?;
+        .map_err(|error| format!("The file {} could not be created: {error}", path.display()))?;
     file.write_all(contents.as_bytes())
-        .map_err(|error| format!("No se pudo escribir el archivo {}: {error}", path.display()))?;
+        .map_err(|error| format!("The file {} could not be written: {error}", path.display()))?;
     file.sync_all().map_err(|error| {
         format!(
-            "No se pudo finalizar el archivo {}: {error}",
+            "The file {} could not be finalized: {error}",
             path.display()
         )
     })

@@ -1,14 +1,14 @@
 # MFA-Forge
 
-MFA-Forge is a secure MFA token manager written in Rust. The current release line provides a human CLI, a Windows desktop GUI, a Windows-only local agent session over `stdio`, a Windows-only minimal MCP server over `stdio`, an encrypted local vault, bounded local audit/history reporting, native password rotation within the local automation boundary, and Windows MSI packaging.
+MFA-Forge is a secure MFA token manager written in Rust. The current release line provides a human CLI, a Windows desktop GUI, a Windows-only local agent session over `stdio`, a Windows-only minimal MCP server over `stdio`, an encrypted local vault, bounded local audit/history reporting, native password rotation within the local automation boundary, localized in-app help, configurable UI language selection, and Windows MSI packaging.
 
 ## Release status
 
-- current candidate line: `RC18`
-- numeric version: `0.1.18`
-- local MSI artifact: `target/rc/MFA-Forge-RC18-x64.msi`
-- the exact upgrade path from installed `RC17` to `RC18` has been validated locally
-- `RC18` is still a local candidate until a tag and GitHub prerelease are created
+- current candidate line: `RC19`
+- numeric version: `0.1.19`
+- local MSI artifact: `target/rc/MFA-Forge-RC19-x64.msi`
+- the exact upgrade path from installed `RC18` to `RC19` must be recorded alongside the RC19 publication evidence
+- `RC19` becomes public only after the tag, MSI assets, checksum, and GitHub prerelease are created
 
 ## Repository guide
 
@@ -26,7 +26,7 @@ Implemented now:
 - encrypted local vault with `Argon2id + AES-256-GCM`
 - atomic writes with temp-file promotion plus backup and restore support
 - CLI for `init`, `agent`, `mcp`, `add`, `import`, `import-csv`, `import-bitwarden-csv`, `list`, `history`, `restore`, `token`, `remove`, `rotate-password`, and `export`
-- Windows desktop GUI for unlock, account management, import flows, token display, history restore, export, and theme persistence
+- Windows desktop GUI for unlock, workspace navigation, account management, import flows, token display, history restore, export, theme persistence, language persistence, and localized help
 - dedicated `mfa-forge-agent` binary for process-scoped local automation
 - dedicated `mfa-forge-mcp` binary for MCP clients over JSON-RPC `stdio`
 - dedicated `mfa-forge-launcher` binary for release discovery, checksum verification, and MSI handoff
@@ -124,7 +124,7 @@ Notes:
 
 ## GUI and automation status
 
-The GUI already provides unlock, project navigation, account management, QR import, account history restore, token display with live countdown, metadata export, password rotation, and persistent theming.
+The GUI already provides unlock, project navigation, account management, QR import, account history restore, token display with live countdown, metadata export, password rotation, persistent theme/language preferences, and embedded localized help.
 
 The local agent session already provides a Windows-only process-scoped session over JSON `stdio` with unlock, list, token generation, add, import, update, remove, metadata export, history inspection, password rotation, and explicit session closure.
 

@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use eframe::egui;
+use egui_commonmark::CommonMarkCache;
 
 use mfa_forge_core::{AccountPublic, ProjectDirectory};
 
@@ -10,7 +11,9 @@ use crate::app_tasks::{
 };
 use crate::app_unlock::{GuiPendingPrepareUnlock, GuiPendingUnlockFlow};
 use crate::{
-    dialogs, platform_auth,
+    dialogs, help,
+    i18n::{self, tr, trf},
+    platform_auth,
     state::{AppState, BannerTone, Screen, WorkspaceScope},
     theme,
     vault::VaultFacade,
@@ -48,16 +51,22 @@ pub struct ForgeApp {
     pub(crate) pending_history_job: Option<PendingTask<HistoryTaskResult>>,
     pub(crate) pending_token_job: Option<PendingTask<TokenTaskResult>>,
     pub(crate) pending_search_job: Option<PendingTask<SearchTaskResult>>,
+    pub(crate) help_markdown_cache: CommonMarkCache,
 }
 
 impl ForgeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Result<Self, String> {
-        let theme_preference = theme::load_preference();
-        theme::apply(&cc.egui_ctx, theme_preference);
+        let preferences = theme::load_preferences();
+        theme::apply(&cc.egui_ctx, preferences.theme);
+        i18n::init(preferences.language);
 
         let owner_window = platform_auth::capture_owner_window(cc)?;
         let vault = VaultFacade::try_new().map_err(|error| error.to_string())?;
-        let state = AppState::new(vault.is_initialized(), theme_preference);
+        let state = AppState::new(
+            vault.is_initialized(),
+            preferences.theme,
+            preferences.language,
+        );
 
         Ok(Self {
             owner_window,
@@ -69,6 +78,7 @@ impl ForgeApp {
             pending_history_job: None,
             pending_token_job: None,
             pending_search_job: None,
+            help_markdown_cache: CommonMarkCache::default(),
         })
     }
 
@@ -121,16 +131,20 @@ impl ForgeApp {
 
     pub fn vault_status_label(&self) -> &'static str {
         if self.vault.is_unlocked() {
-            "Activo"
+            "Active"
         } else if self.vault.is_initialized() {
-            "Bloqueado"
+            "Blocked"
         } else {
-            "Sin inicializar"
+            "Uninitialized"
         }
     }
 
     pub fn workspace_scope(&self) -> &WorkspaceScope {
         &self.state.workspace_scope
+    }
+
+    pub fn language(&self) -> i18n::Language {
+        self.state.language
     }
 
     pub fn selected_directory_path(&self) -> Option<&str> {
@@ -260,7 +274,10 @@ impl ForgeApp {
                 self.state.search.matched_account_ids.clear();
                 self.set_banner(
                     BannerTone::Warning,
-                    format!("La búsqueda no pudo completarse: {error}"),
+                    trf(
+                        "Search could not be completed: {error}",
+                        &[("error", &error)],
+                    ),
                 );
             }
             None => {}
@@ -308,21 +325,21 @@ impl ForgeApp {
                     && previous.expires_at == token.expires_at =>
             {
                 self.state.token_dialog.action_tone = Some(BannerTone::Info);
-                format!(
-                    "Refresh confirmado al instante. El período TOTP actual sigue vigente, por eso el código no cambió todavía. Vence en {}s.",
-                    token.seconds_remaining,
+                trf(
+                    "Refresh confirmed immediately. The current TOTP period is still active, so the code has not changed yet. It expires in {seconds}s.",
+                    &[("seconds", &token.seconds_remaining.to_string())],
                 )
             }
             Some(_) => {
                 self.state.token_dialog.action_tone = Some(BannerTone::Success);
-                format!(
-                    "Refresh confirmado al instante. Se detectó el período TOTP nuevo y el código visible ya fue actualizado. Vence en {}s.",
-                    token.seconds_remaining,
+                trf(
+                    "Refresh confirmed immediately. A new TOTP period was detected and the visible code has already been updated. It expires in {seconds}s.",
+                    &[("seconds", &token.seconds_remaining.to_string())],
                 )
             }
             None => {
                 self.state.token_dialog.action_tone = Some(BannerTone::Info);
-                "Token leído en segundo plano para el período TOTP vigente.".to_owned()
+                tr("Token read in the background for the active TOTP period.")
             }
         };
 
@@ -380,9 +397,9 @@ impl ForgeApp {
                 self.sync_selection();
                 self.set_banner(
                     BannerTone::Success,
-                    format!(
-                        "Cuenta {} restaurada desde historial.",
-                        result.payload.display_name()
+                    trf(
+                        "Account {name} restored from history.",
+                        &[("name", &result.payload.display_name())],
                     ),
                 );
             }
@@ -395,7 +412,10 @@ impl ForgeApp {
                 } else {
                     self.set_banner(
                         BannerTone::Error,
-                        format!("La operación del historial no pudo completarse: {error}"),
+                        trf(
+                            "The history operation could not be completed: {error}",
+                            &[("error", &error)],
+                        ),
                     );
                 }
             }
@@ -445,13 +465,13 @@ impl ForgeApp {
 
         let Ok(password) = self.vault.password_snapshot() else {
             self.state.restore_dialog.error =
-                Some("No se pudo refrescar el historial restaurable.".to_owned());
+                Some(tr("Restorable history could not be refreshed."));
             return;
         };
 
         self.state
             .restore_dialog
-            .begin_pending("Actualizando historial restaurable...");
+            .begin_pending(tr("Refreshing restorable history..."));
         self.pending_history_job = Some(crate::app_tasks::spawn_load_history_job(password));
     }
 
@@ -505,7 +525,10 @@ impl ForgeApp {
                 self.sync_selection();
                 self.set_banner(
                     BannerTone::Success,
-                    format!("Directorio {} creado.", result.payload.path),
+                    trf(
+                        "Directory {path} created.",
+                        &[("path", &result.payload.path)],
+                    ),
                 );
             }
             VaultJobResult::DirectoryDeleted(result) => {
@@ -522,7 +545,10 @@ impl ForgeApp {
                 self.sync_selection();
                 self.set_banner(
                     BannerTone::Success,
-                    format!("Workspace {} eliminado.", result.payload.path),
+                    trf(
+                        "Workspace {path} removed.",
+                        &[("path", &result.payload.path)],
+                    ),
                 );
             }
             VaultJobResult::AccountRemoved(result) => {
@@ -537,9 +563,9 @@ impl ForgeApp {
                 self.sync_selection();
                 self.set_banner(
                     BannerTone::Success,
-                    format!(
-                        "Cuenta {} eliminada del vault.",
-                        result.payload.display_name()
+                    trf(
+                        "Account {name} removed from the vault.",
+                        &[("name", &result.payload.display_name())],
                     ),
                 );
             }
@@ -554,7 +580,10 @@ impl ForgeApp {
                 self.sync_selection();
                 self.set_banner(
                     BannerTone::Success,
-                    format!("{removed_count} cuenta(s) eliminada(s) del vault."),
+                    trf(
+                        "{count} account(s) removed from the vault.",
+                        &[("count", &removed_count.to_string())],
+                    ),
                 );
             }
             VaultJobResult::AccountImported(result) => {
@@ -567,9 +596,9 @@ impl ForgeApp {
                 self.sync_selection();
                 self.set_banner(
                     BannerTone::Success,
-                    format!(
-                        "Cuenta {} importada correctamente.",
-                        result.payload.display_name()
+                    trf(
+                        "Account {name} imported successfully.",
+                        &[("name", &result.payload.display_name())],
                     ),
                 );
             }
@@ -580,9 +609,9 @@ impl ForgeApp {
                 self.sync_selection();
                 self.set_banner(
                     BannerTone::Success,
-                    format!(
-                        "Backup importado. El vault activo ahora contiene {} cuenta(s).",
-                        result.payload
+                    trf(
+                        "Backup imported. The active vault now contains {count} account(s).",
+                        &[("count", &result.payload.to_string())],
                     ),
                 );
             }
@@ -590,7 +619,10 @@ impl ForgeApp {
                 self.state.export_dialog.close();
                 self.set_banner(
                     BannerTone::Success,
-                    format!("Backup del vault exportado en {}.", path.display()),
+                    trf(
+                        "Vault backup exported to {path}.",
+                        &[("path", &path.display().to_string())],
+                    ),
                 );
             }
             VaultJobResult::AccountExportedFile {
@@ -599,10 +631,12 @@ impl ForgeApp {
             } => {
                 self.set_banner(
                     BannerTone::Success,
-                    format!(
-                        "Cuenta {} exportada a archivo compatible en {}.",
-                        account_label,
-                        path.display()
+                    trf(
+                        "Account {name} exported to a compatible file at {path}.",
+                        &[
+                            ("name", &account_label),
+                            ("path", &path.display().to_string()),
+                        ],
                     ),
                 );
             }
@@ -612,10 +646,12 @@ impl ForgeApp {
             } => {
                 self.set_banner(
                     BannerTone::Success,
-                    format!(
-                        "QR de la cuenta {} guardado en {}.",
-                        account_label,
-                        path.display()
+                    trf(
+                        "QR for account {name} saved to {path}.",
+                        &[
+                            ("name", &account_label),
+                            ("path", &path.display().to_string()),
+                        ],
                     ),
                 );
             }
@@ -666,6 +702,7 @@ impl eframe::App for ForgeApp {
                 dialogs::render(ctx, self);
             }
         }
+        help::render(ctx, self);
 
         if self.state.token_dialog.open {
             request_open_windows_repaint(ctx);

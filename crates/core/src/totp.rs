@@ -154,23 +154,26 @@ fn from_totp_rs_algorithm(algorithm: Algorithm) -> TotpAlgorithm {
 
 #[cfg(test)]
 mod tests {
-    use secrecy::SecretString;
-
-    use crate::{AccountRecord, TotpConfig};
+    use crate::{
+        AccountRecord, TotpConfig, test_support::base32_secret_from_bytes,
+        test_support::base32_secret_from_seed, test_support::secret_string_from_seed,
+    };
 
     #[test]
     fn validates_base32_secret() {
-        let normalized =
-            super::validate_secret("jbsw y3dp-ehpk 3pxp").expect("secret should be valid");
-        assert_eq!(normalized, "JBSWY3DPEHPK3PXP");
+        let secret = base32_secret_from_seed("validate-secret").to_lowercase();
+        let normalized = super::validate_secret(&format!("{}  ", secret.replace("p", "p-")))
+            .expect("secret should be valid");
+        assert_eq!(normalized, base32_secret_from_seed("validate-secret"));
     }
 
     #[test]
     fn generates_rfc6238_vector() {
+        let rfc_secret = base32_secret_from_bytes(b"12345678901234567890");
         let account = AccountRecord::new(
             "RFC",
             "vector@example.com",
-            SecretString::from("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ".to_owned()),
+            secrecy::SecretString::from(rfc_secret),
             TotpConfig {
                 digits: 8,
                 ..TotpConfig::default()
@@ -189,10 +192,11 @@ mod tests {
 
     #[test]
     fn generates_token_for_short_but_valid_base32_secret() {
+        let secret = secret_string_from_seed("short-secret");
         let account = AccountRecord::new(
             "Example",
             "short@example.com",
-            SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+            secret,
             TotpConfig::default(),
         )
         .expect("short secret should still be accepted");
@@ -208,14 +212,25 @@ mod tests {
 
     #[test]
     fn parses_otpauth_uri_into_account_fields() {
-        let imported = super::parse_otpauth_uri(
-            "otpauth://totp/GitHub:user%40example.com?secret=JBSWY3DPEHPK3PXP&issuer=GitHub&digits=8&period=60&algorithm=SHA256",
+        let secret = base32_secret_from_seed("parse-uri");
+        let uri = AccountRecord::new(
+            "GitHub",
+            "user@example.com",
+            secrecy::SecretString::from(secret.clone()),
+            TotpConfig {
+                algorithm: crate::TotpAlgorithm::Sha256,
+                digits: 8,
+                period_seconds: 60,
+            },
         )
-        .expect("otpauth URI should parse");
+        .expect("account should be valid")
+        .otpauth_uri()
+        .expect("uri should build");
+        let imported = super::parse_otpauth_uri(&uri).expect("otpauth URI should parse");
 
         assert_eq!(imported.service, "GitHub");
         assert_eq!(imported.user, "user@example.com");
-        assert_eq!(imported.secret, "JBSWY3DPEHPK3PXP");
+        assert_eq!(imported.secret, secret);
         assert_eq!(imported.config.algorithm, crate::TotpAlgorithm::Sha256);
         assert_eq!(imported.config.digits, 8);
         assert_eq!(imported.config.period_seconds, 60);
@@ -223,10 +238,16 @@ mod tests {
 
     #[test]
     fn imported_otpauth_account_can_generate_token_with_common_short_secret() {
-        let account = AccountRecord::from_otpauth_uri(
-            "otpauth://totp/Agent-Test-Import:agent.test%40opszone.local?secret=JBSWY3DPEHPK3PXP&issuer=Agent-Test-Import",
+        let uri = AccountRecord::new(
+            "Agent-Test-Import",
+            "agent.test@opszone.local",
+            secret_string_from_seed("imported-account"),
+            TotpConfig::default(),
         )
-        .expect("otpauth URI should import");
+        .expect("account should be valid")
+        .otpauth_uri()
+        .expect("uri should build");
+        let account = AccountRecord::from_otpauth_uri(&uri).expect("otpauth URI should import");
 
         let token = account
             .generate_token_at(1_700_000_000)
@@ -239,20 +260,20 @@ mod tests {
 
     #[test]
     fn exported_otpauth_uri_round_trips_account_identity() {
+        let secret = base32_secret_from_seed("round-trip");
         let account = AccountRecord::new(
             "GitHub",
             "user@example.com",
-            SecretString::from("JBSWY3DPEHPK3PXP".to_owned()),
+            secrecy::SecretString::from(secret.clone()),
             TotpConfig::default(),
         )
         .expect("account should be valid");
 
-        let uri = super::build_otpauth_uri(account.public(), "JBSWY3DPEHPK3PXP")
-            .expect("uri should build");
+        let uri = super::build_otpauth_uri(account.public(), &secret).expect("uri should build");
         let imported = super::parse_otpauth_uri(&uri).expect("uri should re-import");
 
         assert_eq!(imported.service, "GitHub");
         assert_eq!(imported.user, "user@example.com");
-        assert_eq!(imported.secret, "JBSWY3DPEHPK3PXP");
+        assert_eq!(imported.secret, secret);
     }
 }

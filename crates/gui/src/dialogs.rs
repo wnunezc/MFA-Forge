@@ -4,6 +4,7 @@ use mfa_forge_core::TotpAlgorithm;
 
 use crate::{
     app::ForgeApp,
+    i18n::{tr, trf},
     state::{AccountFormState, BannerTone, MetadataFormState},
     theme,
 };
@@ -45,15 +46,15 @@ fn notice_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
 
             ui.add_space(10.0);
             ui.label(
-                RichText::new(
-                    "Este aviso no expone secretos y solo confirma el estado de la sesión.",
-                )
+                RichText::new(tr(
+                    "This notice does not expose secrets and only confirms the session state.",
+                ))
                 .small()
                 .color(palette.secondary_text),
             );
 
             ui.separator();
-            if ui.button("✖ Cerrar").clicked() {
+            if ui.button(format!("✖ {}", tr("Close"))).clicked() {
                 app.state_mut().notice_dialog.close();
             }
         });
@@ -71,14 +72,16 @@ fn add_account_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
     let palette = theme::palette(app.theme_preference());
     let mut open = app.state().add_dialog.open;
 
-    egui::Window::new("Agregar cuenta MFA")
+    egui::Window::new(tr("Add MFA account"))
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
         .default_width(560.0)
         .show(ctx, |ui| {
             let directories = app.directories().to_vec();
-            ui.label("Carga una cuenta TOTP sin revelar el secreto en la interfaz.");
+            ui.label(tr(
+                "Load a TOTP account without revealing the secret in the interface.",
+            ));
             ui.separator();
 
             account_form_fields(
@@ -89,9 +92,11 @@ fn add_account_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
             );
 
             ui.label(
-                RichText::new("La contraseña maestra y el secreto nunca se imprimen por defecto.")
-                    .small()
-                    .color(palette.warning_text),
+                RichText::new(tr(
+                    "The master password and the secret are never printed by default.",
+                ))
+                .small()
+                .color(palette.warning_text),
             );
 
             if let Some(error) = &app.state().add_dialog.error {
@@ -100,10 +105,10 @@ fn add_account_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
 
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("✖ Cancelar").clicked() {
+                if ui.button(format!("✖ {}", tr("Cancel"))).clicked() {
                     app.state_mut().add_dialog.clear();
                 }
-                if ui.button("💾 Guardar cuenta").clicked() {
+                if ui.button(format!("💾 {}", tr("Save account"))).clicked() {
                     app.submit_add_dialog();
                 }
             });
@@ -122,20 +127,24 @@ fn edit_account_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
     let palette = theme::palette(app.theme_preference());
     let mut open = app.state().edit_dialog.open;
 
-    egui::Window::new("Editar cuenta MFA")
+    egui::Window::new(tr("Edit MFA account"))
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
         .default_width(560.0)
         .show(ctx, |ui| {
             let directories = app.directories().to_vec();
-            ui.label("Actualiza el workspace o los parámetros TOTP. Deja el secreto vacío para conservar el actual.");
+            ui.label(tr(
+                "Update the workspace or the TOTP settings. Leave the secret empty to keep the current one.",
+            ));
             ui.separator();
 
             account_form_fields(ui, &directories, &mut app.state_mut().edit_dialog.form, true);
 
             ui.label(
-                RichText::new("Si no cambias el secreto, MFA-Forge reutiliza el material ya cifrado del vault.")
+                RichText::new(tr(
+                    "If you do not change the secret, MFA-Forge reuses the encrypted material already stored in the vault.",
+                ))
                     .small()
                     .color(palette.secondary_text),
             );
@@ -146,10 +155,10 @@ fn edit_account_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
 
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("✖ Cancelar").clicked() {
+                if ui.button(format!("✖ {}", tr("Cancel"))).clicked() {
                     app.state_mut().edit_dialog.clear();
                 }
-                if ui.button("💾 Guardar cambios").clicked() {
+                if ui.button(format!("💾 {}", tr("Save changes"))).clicked() {
                     app.submit_edit_dialog();
                 }
             });
@@ -168,21 +177,23 @@ fn import_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
     let palette = theme::palette(app.theme_preference());
     let mut open = app.state().import_dialog.open;
 
-    egui::Window::new("Importar otpauth://")
+    egui::Window::new(tr("Import otpauth://"))
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
         .default_width(580.0)
         .show(ctx, |ui| {
             let directories = app.directories().to_vec();
-            ui.label("Pega un URI `otpauth://` válido. MFA-Forge extraerá servicio, usuario y configuración TOTP.");
+            ui.label(tr(
+                "Paste a valid `otpauth://` URI. MFA-Forge will extract the service, user, and TOTP settings.",
+            ));
             ui.separator();
 
-            ui.label("URI de importación");
+            ui.label(tr("Import URI"));
             ui.add(
                 TextEdit::singleline(&mut app.state_mut().import_dialog.uri)
                     .password(true)
-                    .hint_text("otpauth://totp/Servicio:usuario?..."),
+                    .hint_text("otpauth://totp/service:user?..."),
             );
 
             directory_assignment_fields(
@@ -192,7 +203,9 @@ fn import_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
             );
 
             ui.label(
-                RichText::new("El URI contiene el secreto: se oculta en pantalla y se limpia al cerrar el diálogo.")
+                RichText::new(tr(
+                    "The URI contains the secret: it is hidden on screen and cleared when the dialog closes.",
+                ))
                     .small()
                     .color(palette.warning_text),
             );
@@ -204,8 +217,8 @@ fn import_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
             if app.state().import_dialog.pending {
                 ui.horizontal(|ui| {
                     ui.add(egui::Spinner::new());
-                    ui.label(
-                        RichText::new("Importando la cuenta sin bloquear la interfaz.")
+                        ui.label(
+                        RichText::new(tr("Importing the account without blocking the interface."))
                             .small()
                             .color(palette.secondary_text),
                     );
@@ -214,16 +227,16 @@ fn import_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
 
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("✖ Cancelar").clicked() {
+                if ui.button(format!("✖ {}", tr("Cancel"))).clicked() {
                     app.state_mut().import_dialog.clear();
                 }
                 if ui
                     .add_enabled(
                         !app.state().import_dialog.pending,
                         egui::Button::new(if app.state().import_dialog.pending {
-                            "📤 Importando..."
+                            format!("📤 {}", tr("Importing..."))
                         } else {
-                            "📤 Importar"
+                            format!("📤 {}", tr("Import"))
                         }),
                     )
                     .clicked()
@@ -246,24 +259,24 @@ fn import_qr_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
     let palette = theme::palette(app.theme_preference());
     let mut open = app.state().import_qr_dialog.open;
 
-    egui::Window::new("📤 Importar desde QR")
+    egui::Window::new(format!("📤 {}", tr("Import from QR")))
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
         .default_width(580.0)
         .show(ctx, |ui| {
             let directories = app.directories().to_vec();
-            ui.label("Indica la ruta de una imagen local con un QR `otpauth://`.");
+            ui.label(tr("Provide the path to a local image that contains an `otpauth://` QR."));
             ui.separator();
 
-            ui.label("Ruta de imagen");
+            ui.label(tr("Image path"));
             ui.horizontal(|ui| {
                 ui.add(
                     TextEdit::singleline(&mut app.state_mut().import_qr_dialog.image_path)
-                        .hint_text("D:/ruta/qr.png")
+                        .hint_text("D:/path/to/qr.png")
                         .desired_width(360.0),
                 );
-                if ui.button("🔍 Seleccionar...").clicked() {
+                if ui.button(format!("🔍 {}", tr("Browse..."))).clicked() {
                     app.browse_import_qr_image();
                 }
             });
@@ -275,7 +288,9 @@ fn import_qr_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
             );
 
             ui.label(
-                RichText::new("La imagen solo se usa para extraer el `otpauth://`; el secreto no se deja visible en la UI.")
+                RichText::new(tr(
+                    "The image is only used to extract the `otpauth://`; the secret is not left visible in the UI.",
+                ))
                     .small()
                     .color(palette.warning_text),
             );
@@ -287,8 +302,8 @@ fn import_qr_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
             if app.state().import_qr_dialog.pending {
                 ui.horizontal(|ui| {
                     ui.add(egui::Spinner::new());
-                    ui.label(
-                        RichText::new("📤 Importando la cuenta desde la imagen QR.")
+                        ui.label(
+                        RichText::new(tr("Importing the account from the QR image."))
                             .small()
                             .color(palette.secondary_text),
                     );
@@ -297,16 +312,16 @@ fn import_qr_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
 
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("✖ Cancelar").clicked() {
+                if ui.button(format!("✖ {}", tr("Cancel"))).clicked() {
                     app.state_mut().import_qr_dialog.clear();
                 }
                 if ui
                     .add_enabled(
                         !app.state().import_qr_dialog.pending,
                         egui::Button::new(if app.state().import_qr_dialog.pending {
-                            "📥 Importando..."
+                            format!("📥 {}", tr("Importing..."))
                         } else {
-                            "📤 Importar QR"
+                            format!("📤 {}", tr("Import QR"))
                         }),
                     )
                     .clicked()
@@ -329,24 +344,26 @@ fn import_file_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
     let palette = theme::palette(app.theme_preference());
     let mut open = app.state().import_file_dialog.open;
 
-    egui::Window::new("Importar cuenta desde archivo")
+    egui::Window::new(tr("Import account from file"))
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
         .default_width(600.0)
         .show(ctx, |ui| {
             let directories = app.directories().to_vec();
-            ui.label("Selecciona un archivo compatible que contenga un URI `otpauth://` exportado explícitamente.");
+            ui.label(tr(
+                "Select a compatible file that contains an explicitly exported `otpauth://` URI.",
+            ));
             ui.separator();
 
-            ui.label("Archivo de cuenta");
+            ui.label(tr("Account file"));
             ui.horizontal(|ui| {
                 ui.add(
                     TextEdit::singleline(&mut app.state_mut().import_file_dialog.file_path)
-                        .hint_text("D:/ruta/cuenta.otpauth")
+                        .hint_text("D:/path/to/account.otpauth")
                         .desired_width(380.0),
                 );
-                if ui.button("🔍 Seleccionar...").clicked() {
+                if ui.button(format!("🔍 {}", tr("Browse..."))).clicked() {
                     app.browse_import_file_dialog();
                 }
             });
@@ -358,7 +375,9 @@ fn import_file_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
             );
 
             ui.label(
-                RichText::new("El archivo se valida antes de importarse. Si no contiene un `otpauth://` válido, se rechaza.")
+                RichText::new(tr(
+                    "The file is validated before import. If it does not contain a valid `otpauth://`, it is rejected.",
+                ))
                     .small()
                     .color(palette.secondary_text),
             );
@@ -370,8 +389,8 @@ fn import_file_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
             if app.state().import_file_dialog.pending {
                 ui.horizontal(|ui| {
                     ui.add(egui::Spinner::new());
-                    ui.label(
-                        RichText::new("Importando la cuenta desde archivo.")
+                        ui.label(
+                        RichText::new(tr("Importing the account from a file."))
                             .small()
                             .color(palette.secondary_text),
                     );
@@ -380,16 +399,16 @@ fn import_file_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
 
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("✖ Cancelar").clicked() {
+                if ui.button(format!("✖ {}", tr("Cancel"))).clicked() {
                     app.state_mut().import_file_dialog.clear();
                 }
                 if ui
                     .add_enabled(
                         !app.state().import_file_dialog.pending,
                         egui::Button::new(if app.state().import_file_dialog.pending {
-                            "📥 Importando..."
+                            format!("📥 {}", tr("Importing..."))
                         } else {
-                            "📥 Importar archivo"
+                            format!("📥 {}", tr("Import file"))
                         }),
                     )
                     .clicked()
@@ -425,14 +444,14 @@ fn create_directory_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
     };
     let is_subdirectory = parent_path.is_some();
     let window_title = if is_subdirectory {
-        "📁 Crear subdirectorio"
+        format!("📁 {}", tr("Create subdirectory"))
     } else {
-        "🏢 Crear workspace raíz"
+        format!("🏢 {}", tr("Create root workspace"))
     };
     let action_label = if is_subdirectory {
-        "📁 Crear subdirectorio"
+        format!("📁 {}", tr("Create subdirectory"))
     } else {
-        "🏢 Crear workspace raíz"
+        format!("🏢 {}", tr("Create root workspace"))
     };
 
     egui::Window::new(window_title)
@@ -442,28 +461,30 @@ fn create_directory_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
         .default_width(460.0)
         .show(ctx, |ui| {
             if let Some(parent_path) = parent_path.as_deref() {
-                ui.label(format!("Workspace seleccionado: {parent_path}"));
+                ui.label(trf("Selected workspace: {path}", &[("path", parent_path)]));
                 ui.label(
-                    RichText::new("El nombre que ingreses se agregará debajo de esta ruta.")
+                    RichText::new(tr("The name you enter will be added under this path."))
                         .small()
                         .color(palette.secondary_text),
                 );
             } else {
-                ui.label("Crea un workspace raíz para agrupar cuentas del mismo proyecto.");
+                ui.label(tr(
+                    "Create a root workspace to group accounts from the same project.",
+                ));
             }
 
             ui.separator();
-            ui.label("Nombre del proyecto / directorio");
+            ui.label(tr("Project / directory name"));
             ui.add(
                 TextEdit::singleline(&mut app.state_mut().create_directory_dialog.name)
-                    .hint_text("cliente-a, auth, prod, mobile..."),
+                    .hint_text("client-a, auth, prod, mobile..."),
             );
 
             ui.add_space(8.0);
-            ui.label("Ruta resultante");
+            ui.label(tr("Resulting path"));
             if resulting_path.trim().is_empty() {
                 ui.label(
-                    RichText::new("Se completará cuando ingreses el nombre.")
+                    RichText::new(tr("It will be completed after you enter the name."))
                         .small()
                         .color(palette.secondary_text),
                 );
@@ -481,7 +502,7 @@ fn create_directory_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                 ui.horizontal(|ui| {
                     ui.add(egui::Spinner::new());
                     ui.label(
-                        RichText::new("Creando el workspace y sincronizando el vault.")
+                        RichText::new(tr("Creating the workspace and syncing the vault."))
                             .small()
                             .color(palette.secondary_text),
                     );
@@ -490,16 +511,16 @@ fn create_directory_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
 
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("✖ Cancelar").clicked() {
+                if ui.button(format!("✖ {}", tr("Cancel"))).clicked() {
                     app.state_mut().create_directory_dialog.clear();
                 }
                 if ui
                     .add_enabled(
                         !app.state().create_directory_dialog.pending,
                         egui::Button::new(if app.state().create_directory_dialog.pending {
-                            "Creando..."
+                            tr("Creating...")
                         } else {
-                            action_label
+                            action_label.clone()
                         }),
                     )
                     .clicked()
@@ -527,17 +548,19 @@ fn restore_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
     let restore_pending = app.state().restore_dialog.pending;
     let pending_message = app.state().restore_dialog.pending_message.clone();
 
-    egui::Window::new("Restaurar desde historial")
+    egui::Window::new(tr("Restore from history"))
         .open(&mut open)
         .collapsible(false)
         .default_size([780.0, 460.0])
         .show(ctx, |ui| {
-            ui.label("Elige una versión previa o una cuenta eliminada para restaurarla en el vault actual.");
+            ui.label(tr(
+                "Choose a previous version or a removed account to restore it into the current vault.",
+            ));
             ui.separator();
 
             ui.columns(2, |columns| {
                 columns[0].vertical(|ui| {
-                    ui.label(RichText::new("Versiones disponibles").strong());
+                    ui.label(RichText::new(tr("Available versions")).strong());
                     ui.add_space(6.0);
                     if restore_pending && entries.is_empty() {
                         ui.horizontal(|ui| {
@@ -546,7 +569,7 @@ fn restore_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                                 RichText::new(
                                     pending_message
                                         .as_deref()
-                                        .unwrap_or("Cargando historial restaurable."),
+                                        .unwrap_or(&tr("Loading restorable history.")),
                                 )
                                 .small()
                                 .color(palette.secondary_text),
@@ -554,9 +577,9 @@ fn restore_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                         });
                     } else if entries.is_empty() {
                         ui.label(
-                            RichText::new(
-                                "No hay cuentas eliminadas ni versiones previas restaurables por ahora.",
-                            )
+                            RichText::new(tr(
+                                "No removed accounts or previous versions are available to restore right now.",
+                            ))
                             .small()
                             .color(palette.secondary_text),
                         );
@@ -593,7 +616,7 @@ fn restore_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                     {
                         preview_history_entry(ui, palette, selected);
                     } else {
-                        ui.label("Selecciona una versión para ver el detalle.");
+                        ui.label(tr("Select a version to see the details."));
                     }
                 });
             });
@@ -611,7 +634,7 @@ fn restore_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                         RichText::new(
                             pending_message
                                 .as_deref()
-                                .unwrap_or("Procesando historial restaurable."),
+                                .unwrap_or(&tr("Processing restorable history.")),
                         )
                         .small()
                         .color(palette.secondary_text),
@@ -621,16 +644,16 @@ fn restore_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
 
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("✖ Cerrar").clicked() {
+                if ui.button(format!("✖ {}", tr("Close"))).clicked() {
                     app.state_mut().restore_dialog.clear();
                 }
                 if ui
                     .add_enabled(
                         !restore_pending && selected_entry_id.is_some(),
                         egui::Button::new(if restore_pending {
-                            "📥 Restaurando..."
+                            format!("📥 {}", tr("Restoring..."))
                         } else {
-                            "📥 Restaurar versión seleccionada"
+                            format!("📥 {}", tr("Restore selected version"))
                         }),
                     )
                     .clicked()
@@ -654,7 +677,7 @@ fn remove_directory_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
     let mut open = app.state().remove_directory_dialog.open;
     let path = app.state().remove_directory_dialog.path.clone();
 
-    egui::Window::new("Eliminar workspace vacío")
+    egui::Window::new(tr("Remove empty workspace"))
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
@@ -662,12 +685,12 @@ fn remove_directory_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
         .show(ctx, |ui| {
             ui.label(
                 RichText::new(
-                    "Solo puedes eliminar workspaces o subdirectorios que no tengan cuentas ni hijos.",
+                    tr("You can only remove workspaces or subdirectories that have no accounts or children."),
                 )
                 .color(palette.warning_text),
             );
             ui.separator();
-            ui.label("Ruta seleccionada");
+            ui.label(tr("Selected path"));
             ui.label(RichText::new(path).monospace());
 
             if let Some(error) = &app.state().remove_directory_dialog.error {
@@ -680,7 +703,7 @@ fn remove_directory_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                 ui.horizontal(|ui| {
                     ui.add(egui::Spinner::new());
                     ui.label(
-                        RichText::new("Eliminando el workspace y sincronizando el vault.")
+                        RichText::new(tr("Removing the workspace and syncing the vault."))
                             .small()
                             .color(palette.secondary_text),
                     );
@@ -689,16 +712,16 @@ fn remove_directory_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
 
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("✖ Cancelar").clicked() {
+                if ui.button(format!("✖ {}", tr("Cancel"))).clicked() {
                     app.state_mut().remove_directory_dialog.clear();
                 }
                 if ui
                     .add_enabled(
                         !app.state().remove_directory_dialog.pending,
                         egui::Button::new(if app.state().remove_directory_dialog.pending {
-                            "🗑 Eliminando..."
+                            format!("🗑 {}", tr("Removing..."))
                         } else {
-                            "🗑 Eliminar workspace"
+                            format!("🗑 {}", tr("Remove workspace"))
                         }),
                     )
                     .clicked()
@@ -721,33 +744,35 @@ fn change_password_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
     let palette = theme::palette(app.theme_preference());
     let mut open = app.state().change_password_dialog.open;
 
-    egui::Window::new("Rotar contraseña maestra")
+    egui::Window::new(tr("Rotate master password"))
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
         .default_width(440.0)
         .show(ctx, |ui| {
-            ui.label("Re-cifra el vault actual con una nueva contraseña maestra.");
+            ui.label(tr(
+                "Re-encrypt the current vault with a new master password.",
+            ));
             ui.separator();
 
-            ui.label("Nueva contraseña");
+            ui.label(tr("New password"));
             ui.add(
                 TextEdit::singleline(&mut app.state_mut().change_password_dialog.new_password)
                     .password(true)
-                    .hint_text("Ingresa una contraseña fuerte"),
+                    .hint_text(tr("Enter a strong password")),
             );
 
-            ui.label("Confirmar nueva contraseña");
+            ui.label(tr("Confirm new password"));
             ui.add(
                 TextEdit::singleline(&mut app.state_mut().change_password_dialog.confirm_password)
                     .password(true)
-                    .hint_text("Repite la nueva contraseña"),
+                    .hint_text(tr("Repeat the new password")),
             );
 
             ui.label(
-                RichText::new(
-                    "La sesión desbloqueada seguirá activa si la rotación termina correctamente.",
-                )
+                RichText::new(tr(
+                    "The unlocked session stays active if the rotation completes successfully.",
+                ))
                 .small()
                 .color(palette.secondary_text),
             );
@@ -758,10 +783,10 @@ fn change_password_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
 
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("✖ Cancelar").clicked() {
+                if ui.button(format!("✖ {}", tr("Cancel"))).clicked() {
                     app.state_mut().change_password_dialog.clear();
                 }
-                if ui.button("Aplicar rotación").clicked() {
+                if ui.button(tr("Apply rotation")).clicked() {
                     app.submit_change_password_dialog();
                 }
             });
@@ -781,7 +806,7 @@ fn token_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
     let mut open = app.state().token_dialog.open;
     let mut close_requested = false;
 
-    egui::Window::new("Token TOTP")
+    egui::Window::new(tr("TOTP token"))
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
@@ -800,7 +825,7 @@ fn token_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                             .metadata
                             .project_path
                             .as_deref()
-                            .unwrap_or("Sin workspace"),
+                            .unwrap_or(&tr("No workspace")),
                     )
                     .small()
                     .color(palette.secondary_text),
@@ -813,9 +838,9 @@ fn token_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                     .add_enabled(
                         !app.state().token_dialog.pending,
                         egui::Button::new(if app.state().token_dialog.pending {
-                            "⏳ Actualizando..."
+                            format!("⏳ {}", tr("Updating..."))
                         } else {
-                            "🔄 Refrescar ahora"
+                            format!("🔄 {}", tr("Refresh now"))
                         }),
                     )
                     .clicked()
@@ -824,12 +849,15 @@ fn token_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                     ui.ctx().request_repaint();
                 }
                 if ui
-                    .add_enabled(app.selected_token().is_some(), egui::Button::new("📋 Copiar código"))
+                    .add_enabled(
+                        app.selected_token().is_some(),
+                        egui::Button::new(format!("📋 {}", tr("Copy code"))),
+                    )
                     .clicked()
                 {
                     app.copy_selected_token(ctx);
                 }
-                if ui.button("🚪 Cerrar").clicked() {
+                if ui.button(format!("🚪 {}", tr("Close"))).clicked() {
                     close_requested = true;
                 }
             });
@@ -852,9 +880,9 @@ fn token_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                                         .color(palette.token_text),
                                 );
                                 ui.label(
-                                    RichText::new(format!(
-                                        "Código vigente del período actual · expira en {}s",
-                                        token.seconds_remaining
+                                    RichText::new(trf(
+                                        "Current period code · expires in {seconds}s",
+                                        &[("seconds", &token.seconds_remaining.to_string())],
                                     ))
                                     .small()
                                     .color(palette.detail_label),
@@ -881,7 +909,7 @@ fn token_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                     ui.add_space(8.0);
                     ui.label(
                         RichText::new(
-                            "Si el período TOTP sigue vigente, un refresh puede devolver el mismo código sin ser un fallo.",
+                            tr("If the TOTP period is still active, a refresh can return the same code without being a failure."),
                         )
                         .small()
                         .color(palette.secondary_text),
@@ -893,7 +921,7 @@ fn token_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                     ui.horizontal(|ui| {
                         ui.add(egui::Spinner::new());
                         ui.label(
-                            RichText::new("La lectura segura del vault sigue en curso.")
+                            RichText::new(tr("Secure vault reading is still in progress."))
                                 .small()
                                 .color(palette.secondary_text),
                         );
@@ -938,23 +966,26 @@ fn export_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
     let palette = theme::palette(app.theme_preference());
     let mut open = app.state().export_dialog.open;
 
-    egui::Window::new("Exportar datos")
+    egui::Window::new(tr("Export data"))
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
         .default_width(520.0)
         .show(ctx, |ui| {
-            ui.label("Exporta el vault actual como un backup cifrado compatible con MFA-Forge.");
+            ui.label(tr("Export the current vault as an MFA-Forge-compatible encrypted backup."));
             ui.separator();
 
-            ui.label(format!("Vault actual: {}", app.vault_path()));
-            ui.label(format!("Cuentas: {}", app.total_accounts()));
-            ui.label("Formato: backup cifrado MFA-Forge");
+            ui.label(trf("Current vault: {path}", &[("path", app.vault_path())]));
+            ui.label(trf(
+                "Accounts: {count}",
+                &[("count", &app.total_accounts().to_string())],
+            ));
+            ui.label(tr("Format: MFA-Forge encrypted backup"));
 
             ui.add_space(8.0);
             ui.label(
                 RichText::new(
-                    "El archivo exportado no renderiza estructuras grandes en pantalla y mantiene el formato de backup compatible para reimportación.",
+                    tr("The exported file does not render large structures on screen and keeps the compatible backup format for reimport."),
                 )
                 .small()
                 .color(palette.secondary_text),
@@ -970,7 +1001,7 @@ fn export_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                 ui.horizontal(|ui| {
                     ui.add(egui::Spinner::new());
                     ui.label(
-                        RichText::new("Exportando el backup del vault.")
+                        RichText::new(tr("Exporting the vault backup."))
                             .small()
                             .color(palette.secondary_text),
                     );
@@ -979,16 +1010,16 @@ fn export_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
 
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("✖ Cerrar").clicked() {
+                if ui.button(format!("✖ {}", tr("Close"))).clicked() {
                     app.state_mut().export_dialog.close();
                 }
                 if ui
                     .add_enabled(
                         !app.state().export_dialog.pending,
                         egui::Button::new(if app.state().export_dialog.pending {
-                            "📤 Exportando..."
+                            format!("📤 {}", tr("Exporting..."))
                         } else {
-                            "📤 Guardar backup"
+                            format!("📤 {}", tr("Save backup"))
                         }),
                     )
                     .clicked()
@@ -1011,7 +1042,7 @@ fn account_uri_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
     let palette = theme::palette(app.theme_preference());
     let mut open = app.state().account_uri_dialog.open;
 
-    egui::Window::new("Exportar cuenta como URI")
+    egui::Window::new(tr("Export account as URI"))
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
@@ -1024,7 +1055,7 @@ fn account_uri_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
             );
             ui.label(
                 RichText::new(
-                    "Este URI incluye el secreto. Solo se muestra porque la exportación fue solicitada explícitamente.",
+                    tr("This URI includes the secret. It is only shown because the export was explicitly requested."),
                 )
                 .small()
                 .color(palette.warning_text),
@@ -1035,7 +1066,7 @@ fn account_uri_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                 ui.horizontal(|ui| {
                     ui.add(egui::Spinner::new());
                     ui.label(
-                        RichText::new("Preparando el URI de exportación.")
+                        RichText::new(tr("Preparing the export URI."))
                             .small()
                             .color(palette.secondary_text),
                     );
@@ -1043,7 +1074,7 @@ fn account_uri_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
             } else {
                 let mut reveal_uri = app.state().account_uri_dialog.reveal;
                 ui.separator();
-                ui.checkbox(&mut reveal_uri, "Mostrar URI completo");
+                ui.checkbox(&mut reveal_uri, tr("Show full URI"));
                 app.state_mut().account_uri_dialog.reveal = reveal_uri;
                 ui.add(
                     TextEdit::singleline(&mut app.state_mut().account_uri_dialog.uri)
@@ -1059,21 +1090,21 @@ fn account_uri_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
 
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("✖ Cerrar").clicked() {
+                if ui.button(format!("✖ {}", tr("Close"))).clicked() {
                     app.state_mut().account_uri_dialog.close();
                 }
                 if ui
                     .add_enabled(
                         !app.state().account_uri_dialog.pending
                             && !app.state().account_uri_dialog.uri.is_empty(),
-                        egui::Button::new("📋 Copiar URI"),
+                        egui::Button::new(format!("📋 {}", tr("Copy URI"))),
                     )
                     .clicked()
                 {
                     ctx.copy_text(app.state().account_uri_dialog.uri.clone());
                     app.set_banner(
                         BannerTone::Success,
-                        "URI de la cuenta copiado al portapapeles.",
+                        tr("Account URI copied to the clipboard."),
                     );
                 }
             });
@@ -1092,7 +1123,7 @@ fn remove_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
     let palette = theme::palette(app.theme_preference());
     let mut open = app.state().remove_dialog.open;
 
-    egui::Window::new("Eliminar cuenta")
+    egui::Window::new(tr("Remove account"))
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
@@ -1101,19 +1132,25 @@ fn remove_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
             let account_labels = app.state().remove_dialog.account_labels.clone();
             if !account_labels.is_empty() {
                 ui.label(
-                    RichText::new("Esta acción elimina la cuenta del vault local.")
+                    RichText::new(tr("This action removes the account from the local vault."))
                         .color(palette.warning_text),
                 );
                 ui.separator();
                 if account_labels.len() == 1 {
-                    ui.label(format!("Cuenta: {}", account_labels[0]));
+                    ui.label(trf("Account: {name}", &[("name", &account_labels[0])]));
                 } else {
-                    ui.label(format!("Cuentas seleccionadas: {}", account_labels.len()));
+                    ui.label(trf(
+                        "Selected accounts: {count}",
+                        &[("count", &account_labels.len().to_string())],
+                    ));
                     for label in account_labels.iter().take(5) {
                         ui.label(format!("• {label}"));
                     }
                     if account_labels.len() > 5 {
-                        ui.label(format!("... y {} más.", account_labels.len() - 5));
+                        ui.label(trf(
+                            "... and {count} more.",
+                            &[("count", &(account_labels.len() - 5).to_string())],
+                        ));
                     }
                 }
             }
@@ -1127,7 +1164,7 @@ fn remove_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                 ui.horizontal(|ui| {
                     ui.add(egui::Spinner::new());
                     ui.label(
-                        RichText::new("Eliminando la cuenta y sincronizando el vault.")
+                        RichText::new(tr("Removing the account and syncing the vault."))
                             .small()
                             .color(palette.secondary_text),
                     );
@@ -1136,16 +1173,16 @@ fn remove_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
 
             ui.separator();
             ui.horizontal(|ui| {
-                if ui.button("✖ Cancelar").clicked() {
+                if ui.button(format!("✖ {}", tr("Cancel"))).clicked() {
                     app.state_mut().remove_dialog.clear();
                 }
                 if ui
                     .add_enabled(
                         !app.state().remove_dialog.pending,
                         egui::Button::new(if app.state().remove_dialog.pending {
-                            "🗑 Eliminando..."
+                            format!("🗑 {}", tr("Removing..."))
                         } else {
-                            "🗑 Eliminar definitivamente"
+                            format!("🗑 {}", tr("Remove permanently"))
                         }),
                     )
                     .clicked()
@@ -1166,31 +1203,31 @@ fn account_form_fields(
     form: &mut AccountFormState,
     editing: bool,
 ) {
-    ui.label("Servicio");
+    ui.label(tr("Service"));
     ui.text_edit_singleline(&mut form.service);
 
-    ui.label("Usuario");
+    ui.label(tr("User"));
     ui.text_edit_singleline(&mut form.user);
 
     ui.label(if editing {
-        "Nuevo secreto Base32 (opcional)"
+        tr("New Base32 secret (optional)")
     } else {
-        "Secreto Base32"
+        tr("Base32 secret")
     });
     ui.add(
         TextEdit::singleline(&mut form.secret)
             .password(true)
             .hint_text(if editing {
-                "Deja vacío para conservar el secreto actual"
+                tr("Leave empty to keep the current secret")
             } else {
-                "JBSWY3DPEHPK3PXP"
+                "BASE32_SECRET_HERE".to_owned()
             }),
     );
 
     ui.add_space(6.0);
     ui.horizontal(|ui| {
         ui.vertical(|ui| {
-            ui.label("Algoritmo");
+            ui.label(tr("Algorithm"));
             egui::ComboBox::from_id_salt(if editing {
                 "edit_algorithm"
             } else {
@@ -1206,7 +1243,7 @@ fn account_form_fields(
         });
 
         ui.vertical(|ui| {
-            ui.label("Dígitos");
+            ui.label(tr("Digits"));
             ui.add(
                 TextEdit::singleline(&mut form.digits)
                     .desired_width(64.0)
@@ -1215,7 +1252,7 @@ fn account_form_fields(
         });
 
         ui.vertical(|ui| {
-            ui.label("Período (s)");
+            ui.label(tr("Period (s)"));
             ui.add(
                 TextEdit::singleline(&mut form.period_seconds)
                     .desired_width(80.0)
@@ -1234,21 +1271,24 @@ fn directory_assignment_fields(
 ) {
     ui.add_space(10.0);
     ui.separator();
-    ui.label(RichText::new("Workspace / directorio").strong());
+    ui.label(RichText::new(tr("Workspace / directory")).strong());
     ui.label(
-        "La cuenta nueva hereda el workspace seleccionado en la navegación. Puedes confirmarlo o cambiarlo aquí.",
+        tr("The new account inherits the workspace selected in navigation. You can confirm it or change it here."),
     );
 
     let current_directory = if metadata.project_path.trim().is_empty() {
-        "Sin workspace".to_owned()
+        tr("No workspace")
     } else {
         metadata.project_path.clone()
     };
 
     ui.label(
-        RichText::new(format!("Destino actual: {current_directory}"))
-            .small()
-            .color(ui.visuals().weak_text_color()),
+        RichText::new(trf(
+            "Current destination: {path}",
+            &[("path", &current_directory)],
+        ))
+        .small()
+        .color(ui.visuals().weak_text_color()),
     );
 
     egui::ComboBox::from_id_salt(ui.next_auto_id())
@@ -1256,7 +1296,7 @@ fn directory_assignment_fields(
         .width(320.0)
         .show_ui(ui, |ui| {
             if ui
-                .selectable_label(metadata.project_path.trim().is_empty(), "Sin workspace")
+                .selectable_label(metadata.project_path.trim().is_empty(), tr("No workspace"))
                 .clicked()
             {
                 metadata.project_path.clear();
@@ -1294,12 +1334,19 @@ fn preview_history_entry(
         .color(palette.secondary_text),
     );
     ui.separator();
-    ui.label(format!("Servicio: {}", account.service));
-    ui.label(format!("Usuario: {}", account.user));
-    ui.label(format!("Factor: {}", account.kind));
-    ui.label(format!(
-        "TOTP: {} / {} dígitos / {}s",
-        account.totp.algorithm, account.totp.digits, account.totp.period_seconds
+    ui.label(trf("Service: {value}", &[("value", &account.service)]));
+    ui.label(trf("User: {value}", &[("value", &account.user)]));
+    ui.label(trf(
+        "Factor: {value}",
+        &[("value", &account.kind.to_string())],
+    ));
+    ui.label(trf(
+        "TOTP: {algorithm} / {digits} digits / {seconds}s",
+        &[
+            ("algorithm", &account.totp.algorithm.to_string()),
+            ("digits", &account.totp.digits.to_string()),
+            ("seconds", &account.totp.period_seconds.to_string()),
+        ],
     ));
 
     if let Some(project_path) = account.metadata.project_path.as_deref() {
@@ -1315,9 +1362,9 @@ fn relative_age_label(timestamp: u64) -> String {
     let delta = now.saturating_sub(timestamp);
 
     match delta {
-        0..=59 => format!("hace {}s", delta),
-        60..=3_599 => format!("hace {}m", delta / 60),
-        3_600..=86_399 => format!("hace {}h", delta / 3_600),
-        _ => format!("hace {}d", delta / 86_400),
+        0..=59 => trf("{count}s ago", &[("count", &delta.to_string())]),
+        60..=3_599 => trf("{count}m ago", &[("count", &(delta / 60).to_string())]),
+        3_600..=86_399 => trf("{count}h ago", &[("count", &(delta / 3_600).to_string())]),
+        _ => trf("{count}d ago", &[("count", &(delta / 86_400).to_string())]),
     }
 }
