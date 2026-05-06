@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: MFA-Forge README
+    url: https://github.com/wnunezc/MFA-Forge/blob/main/README.md
+    about: Review the project overview, requirements, and usage instructions.
+  - name: MFA-Forge Release Validation
+    url: https://github.com/wnunezc/MFA-Forge/blob/main/docs/release-validation.md
+    about: Review release validation and RC publication rules.
