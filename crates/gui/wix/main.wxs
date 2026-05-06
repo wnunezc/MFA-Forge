@@ -1,0 +1,250 @@
+<?xml version='1.0' encoding='windows-1252'?>
+<!--
+  Copyright (C) 2017 Christopher R. Field.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<!--
+  The "cargo wix" subcommand provides a variety of predefined variables available
+  for customization of this template. The values for each variable are set at
+  installer creation time. The following variables are available:
+
+  TargetTriple      = The rustc target triple name.
+  TargetEnv         = The rustc target environment. This is typically either
+                      "msvc" or "gnu" depending on the toolchain downloaded and
+                      installed.
+  TargetVendor      = The rustc target vendor. This is typically "pc", but Rust
+                      does support other vendors, like "uwp".
+  CargoTargetBinDir = The complete path to the directory containing the
+                      binaries (exes) to include. The default would be
+                      "target\release\". If an explicit rustc target triple is
+                      used, i.e. cross-compiling, then the default path would
+                      be "target\<CARGO_TARGET>\<CARGO_PROFILE>",
+                      where "<CARGO_TARGET>" is replaced with the "CargoTarget"
+                      variable value and "<CARGO_PROFILE>" is replaced with the
+                      value from the "CargoProfile" variable. This can also
+                      be overridden manually with the "target-bin-dir" flag.
+  CargoTargetDir    = The path to the directory for the build artifacts, i.e.
+                      "target".
+  CargoProfile      = The cargo profile used to build the binaries
+                      (usually "debug" or "release").
+  Version           = The version for the installer. The default is the
+                      "Major.Minor.Fix" semantic versioning number of the Rust
+                      package.
+-->
+
+<!--
+  Please do not remove these pre-processor If-Else blocks. These are used with
+  the `cargo wix` subcommand to automatically determine the installation
+  destination for 32-bit versus 64-bit installers. Removal of these lines will
+  cause installation errors.
+-->
+<?if $(sys.BUILDARCH) = x64 or $(sys.BUILDARCH) = arm64 ?>
+    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+<?else ?>
+    <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+<?endif ?>
+
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+
+    <Product
+        Id='*'
+        Name='MFA-Forge'
+        UpgradeCode='622B6FF8-32E4-4580-96A7-45FC61EC7C64'
+        Manufacturer='OpsZone'
+        Language='1033'
+        Codepage='1252'
+        Version='$(var.Version)'>
+
+        <Package Id='*'
+            Keywords='Installer'
+            Description='Desktop local-first MFA authenticator with encrypted vault.'
+            Manufacturer='OpsZone'
+            InstallerVersion='450'
+            Languages='1033'
+            Compressed='yes'
+            InstallScope='perUser'
+            SummaryCodepage='1252'
+            />
+
+        <MajorUpgrade
+            Schedule='afterInstallInitialize'
+            DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.'/>
+
+        <Media Id='1' Cabinet='media1.cab' EmbedCab='yes' DiskPrompt='CD-ROM #1'/>
+        <Property Id='DiskPrompt' Value='MFA-Forge Installation'/>
+
+        <Directory Id='TARGETDIR' Name='SourceDir'>
+            <Directory Id='LocalAppDataFolder'>
+                <Directory Id='APPLICATIONFOLDER' Name='MFA-Forge'>
+                    <Directory Id='Bin' Name='bin'>
+                        <Component Id='binary0' Guid='3DCF970B-5C4F-4036-B630-F8B989911BD7'>
+                            <RegistryValue
+                                Root='HKCU'
+                                Key='Software\OpsZone\MFA-Forge'
+                                Name='installed'
+                                Type='integer'
+                                Value='1'
+                                KeyPath='yes'/>
+                            <RemoveFile
+                                Id='RemoveExe0OnInstall'
+                                Name='mfa-forge-gui.exe'
+                                On='install'/>
+                            <File
+                                Id='exe0'
+                                Name='mfa-forge-gui.exe'
+                                DiskId='1'
+                                Source='$(var.CargoTargetBinDir)\mfa-forge-gui.exe'
+                                KeyPath='no'/>
+                            <Shortcut
+                                Id='ApplicationStartMenuShortcut'
+                                Directory='ApplicationProgramsFolder'
+                                Name='MFA-Forge'
+                                Description='Desktop local-first MFA authenticator with encrypted vault.'
+                                Target='[#exe0]'
+                                WorkingDirectory='Bin'
+                                Icon='ProductICO'
+                                IconIndex='0'/>
+                            <RemoveFolder Id='ApplicationProgramsFolderCleanup' Directory='ApplicationProgramsFolder' On='uninstall'/>
+                            <RemoveFolder Id='BinCleanup' Directory='Bin' On='uninstall'/>
+                            <RemoveFolder Id='ApplicationFolderCleanup' Directory='APPLICATIONFOLDER' On='uninstall'/>
+                        </Component>
+                        <Component Id='binary1' Guid='B5B1F89D-5B0A-4B51-95D0-CDE2960D8F92'>
+                            <RegistryValue
+                                Root='HKCU'
+                                Key='Software\OpsZone\MFA-Forge'
+                                Name='agent_installed'
+                                Type='integer'
+                                Value='1'
+                                KeyPath='yes'/>
+                            <RemoveFile
+                                Id='RemoveExe1OnInstall'
+                                Name='mfa-forge-agent.exe'
+                                On='install'/>
+                            <File
+                                Id='exe1'
+                                Name='mfa-forge-agent.exe'
+                                DiskId='1'
+                                Source='$(var.CargoTargetBinDir)\mfa-forge-agent.exe'
+                                KeyPath='no'/>
+                        </Component>
+                        <Component Id='binary2' Guid='6C2AE3C9-D0EB-420D-B243-9AA06E74FB95'>
+                            <RegistryValue
+                                Root='HKCU'
+                                Key='Software\OpsZone\MFA-Forge'
+                                Name='cli_installed'
+                                Type='integer'
+                                Value='1'
+                                KeyPath='yes'/>
+                            <RemoveFile
+                                Id='RemoveExe2OnInstall'
+                                Name='mfa-forge.exe'
+                                On='install'/>
+                            <File
+                                Id='exe2'
+                                Name='mfa-forge.exe'
+                                DiskId='1'
+                                Source='$(var.CargoTargetBinDir)\mfa-forge.exe'
+                                KeyPath='no'/>
+                        </Component>
+                        <Component Id='binary3' Guid='C7B81514-75C5-42E5-9FD2-BD4BE7557F96'>
+                            <RegistryValue
+                                Root='HKCU'
+                                Key='Software\OpsZone\MFA-Forge'
+                                Name='mcp_installed'
+                                Type='integer'
+                                Value='1'
+                                KeyPath='yes'/>
+                            <RemoveFile
+                                Id='RemoveExe3OnInstall'
+                                Name='mfa-forge-mcp.exe'
+                                On='install'/>
+                            <File
+                                Id='exe3'
+                                Name='mfa-forge-mcp.exe'
+                                DiskId='1'
+                                Source='$(var.CargoTargetBinDir)\mfa-forge-mcp.exe'
+                                KeyPath='no'/>
+                        </Component>
+                    </Directory>
+                </Directory>
+            </Directory>
+
+            <Directory Id='ProgramMenuFolder'>
+                <Directory Id='ApplicationProgramsFolder' Name='MFA-Forge'/>
+            </Directory>
+        </Directory>
+
+        <Feature
+            Id='Binaries'
+            Title='Application'
+            Description='Installs the desktop application and local agent tooling.'
+            Level='1'
+            ConfigurableDirectory='APPLICATIONFOLDER'
+            AllowAdvertise='no'
+            Display='expand'
+            Absent='disallow'>
+            <ComponentRef Id='binary0'/>
+            <ComponentRef Id='binary1'/>
+            <ComponentRef Id='binary2'/>
+            <ComponentRef Id='binary3'/>
+        </Feature>
+
+        <SetProperty Id='ARPINSTALLLOCATION' Value='[APPLICATIONFOLDER]' After='CostFinalize'/>
+
+        
+        <Icon Id='ProductICO' SourceFile='D:\OpsZone\DevWorkspace\Projects\Desktop\MFA-Forge\crates\gui\wix\Product.ico'/>
+        <Property Id='ARPPRODUCTICON' Value='ProductICO' />
+
+        
+        <!--
+          Adding a URL to Add/Remove Programs control panel listing for the
+          application is a two step process:
+
+          1. Uncomment the following `Property` tag with the "ARPHELPLINK" Id
+             attribute value.
+          2. Change the value for `Value` attribute of the following
+             `Property` tag to a valid URL.
+        -->
+        <!--<Property Id='ARPHELPLINK' Value='ChangeMe'/>-->
+
+        <UI>
+            <UIRef Id='WixUI_FeatureTree'/>
+            <Publish Dialog='WelcomeDlg' Control='Next' Event='NewDialog' Value='CustomizeDlg' Order='99'>1</Publish>
+            <Publish Dialog='CustomizeDlg' Control='Back' Event='NewDialog' Value='WelcomeDlg' Order='99'>1</Publish>
+        </UI>
+        <!--
+          Uncomment the next `WixVariable` tag to customize the installer's
+          Graphical User Interface (GUI) and add a custom banner image across
+          the top of each screen. See the WiX Toolset documentation for details
+          about customization.
+
+          The banner BMP dimensions are 493 x 58 pixels.
+        -->
+        <!--<WixVariable Id='WixUIBannerBmp' Value='wix\Banner.bmp'/>-->
+
+        
+        <!--
+          Uncomment the next `WixVariable` tag to customize the installer's
+          Graphical User Interface (GUI) and add a custom image to the first
+          dialog, or screen. See the WiX Toolset documentation for details about
+          customization.
+
+          The dialog BMP dimensions are 493 x 312 pixels.
+        -->
+        <!--<WixVariable Id='WixUIDialogBmp' Value='wix\Dialog.bmp'/>-->
+
+    </Product>
+
+</Wix>

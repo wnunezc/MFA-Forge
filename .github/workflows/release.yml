@@ -1,0 +1,131 @@
+name: Release MSI
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*-rc.*"
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  windows-msi:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install WiX Toolset
+        shell: powershell
+        run: choco install wixtoolset -y --no-progress
+
+      - name: Install cargo-wix
+        shell: powershell
+        run: cargo install cargo-wix --version 0.3.9 --locked
+
+      - name: Resolve release metadata
+        id: release_meta
+        shell: powershell
+        run: |
+          $tagName = "${{ github.ref_name }}"
+          if ($tagName -notmatch '^v(?<version>\d+\.\d+\.(?<patch>\d+))-rc\.(?<rc>\d+)$') {
+            throw "Unsupported tag format: $tagName. Expected v0.1.N-rc.N"
+          }
+
+          if ($Matches.patch -ne $Matches.rc) {
+            throw "RC number must match patch number for MFA-Forge: $tagName"
+          }
+
+          $version = $Matches.version
+          $rcNumber = $Matches.rc
+          $assetName = "MFA-Forge-RC$rcNumber-x64.msi"
+          $notesPath = "docs/release/$version-rc.$rcNumber-draft.md"
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "rc_number=$rcNumber" >> $env:GITHUB_OUTPUT
+          "asset_name=$assetName" >> $env:GITHUB_OUTPUT
+          "notes_path=$notesPath" >> $env:GITHUB_OUTPUT
+
+      - name: Validate Cargo version
+        shell: powershell
+        run: |
+          $workspaceVersion = (Select-String -Path 'Cargo.toml' -Pattern 'version = \"([^\"]+)\"').Matches[0].Groups[1].Value
+          if ($workspaceVersion -ne '${{ steps.release_meta.outputs.version }}') {
+            throw "Cargo workspace version $workspaceVersion does not match tag version ${{ steps.release_meta.outputs.version }}"
+          }
+
+      - name: Validate formatting
+        shell: powershell
+        run: cargo fmt --all -- --check
+
+      - name: Validate clippy
+        shell: powershell
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Validate tests
+        shell: powershell
+        run: cargo test --workspace
+
+      - name: Build release binaries
+        shell: powershell
+        run: cargo build --workspace --release
+
+      - name: Build MSI
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path 'target/rc' | Out-Null
+          cargo wix --package mfa-forge-gui --no-build --target-bin-dir "$PWD/target/release" --output "$PWD/target/rc/${{ steps.release_meta.outputs.asset_name }}"
+
+      - name: Generate checksum
+        shell: powershell
+        run: |
+          $msiPath = Join-Path $PWD "target/rc/${{ steps.release_meta.outputs.asset_name }}"
+          if (-not (Test-Path -LiteralPath $msiPath)) {
+            throw "MSI not found: $msiPath"
+          }
+
+          $hash = (Get-FileHash -LiteralPath $msiPath -Algorithm SHA256).Hash
+          Set-Content -LiteralPath ($msiPath + '.sha256.txt') -Value ($hash + ' *' + [System.IO.Path]::GetFileName($msiPath))
+
+      - name: Upload MSI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mfa-forge-msi
+          path: |
+            target/rc/*.msi
+            target/rc/*.sha256.txt
+
+      - name: Prepare release notes
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path 'target' | Out-Null
+          $notesPath = "${{ steps.release_meta.outputs.notes_path }}"
+
+          if (Test-Path -LiteralPath $notesPath) {
+            Copy-Item -LiteralPath $notesPath -Destination 'target/release-notes.md' -Force
+          } else {
+            Set-Content -LiteralPath 'target/release-notes.md' -Value "MFA-Forge ${{ github.ref_name }}"
+          }
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: MFA-Forge ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          body_path: target/release-notes.md
+          prerelease: true
+          make_latest: false
+          files: |
+            target/rc/*.msi
+            target/rc/*.sha256.txt

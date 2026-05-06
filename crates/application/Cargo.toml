@@ -1,0 +1,14 @@
+[package]
+name = "mfa-forge-application"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+mfa-forge-core = { path = "../core" }
+mfa-forge-storage = { path = "../storage" }
+secrecy.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

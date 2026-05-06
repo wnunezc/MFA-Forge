@@ -1,0 +1,35 @@
+[package]
+name = "mfa-forge"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "mfa-forge"
+path = "src/main.rs"
+test = false
+
+[[bin]]
+name = "mfa-forge-launcher"
+path = "src/bin/mfa-forge-launcher.rs"
+test = false
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+csv.workspace = true
+mfa-forge-core = { path = "../core" }
+mfa-forge-storage = { path = "../storage" }
+rpassword.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+ureq = { version = "2.10", default-features = true }
+url = "2.5"
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[build-dependencies]
+winres = "0.1"

@@ -1,0 +1,12 @@
+[package]
+name = "mfa-forge-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+secrecy.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+totp-rs.workspace = true
+uuid.workspace = true
+zeroize.workspace = true

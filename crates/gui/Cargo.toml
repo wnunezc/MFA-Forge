@@ -1,0 +1,47 @@
+[package]
+name = "mfa-forge-gui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors = ["OpsZone"]
+description = "Desktop local-first MFA authenticator with encrypted vault."
+
+[[bin]]
+name = "mfa-forge-gui"
+path = "src/main.rs"
+test = false
+
+[[bin]]
+name = "mfa-forge-agent"
+path = "src/bin/mfa-forge-agent.rs"
+test = false
+
+[[bin]]
+name = "mfa-forge-mcp"
+path = "src/bin/mfa-forge-mcp.rs"
+test = false
+
+[dependencies]
+directories.workspace = true
+eframe.workspace = true
+egui.workspace = true
+image = { version = "0.25", default-features = false, features = ["bmp", "jpeg", "png"] }
+mfa-forge-application = { path = "../application" }
+mfa-forge-core = { path = "../core" }
+mfa-forge-platform-windows = { path = "../platform-windows" }
+mfa-forge-storage = { path = "../storage" }
+raw-window-handle.workspace = true
+rfd = "0.15"
+qrcode = { version = "0.14", default-features = false, features = ["image"] }
+rqrr = "0.8"
+secrecy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[build-dependencies]
+winres = "0.1"
