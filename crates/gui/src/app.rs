@@ -689,6 +689,10 @@ fn workspace_scope_matches(account: &AccountPublic, scope: &WorkspaceScope) -> b
 impl eframe::App for ForgeApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         theme::apply(ctx, self.state.theme_preference);
+        if !self.startup_update_check_attempted {
+            self.startup_update_check_attempted = true;
+            self.start_latest_rc_update(true);
+        }
         self.poll_pending_prepare(ctx);
         self.poll_pending_unlock(ctx);
         self.poll_pending_vault_job(ctx);
@@ -700,10 +704,6 @@ impl eframe::App for ForgeApp {
         match self.state.screen {
             Screen::Loader => views::loader::render(ctx, self),
             Screen::Main => {
-                if !self.startup_update_check_attempted {
-                    self.startup_update_check_attempted = true;
-                    self.start_latest_rc_update(true);
-                }
                 self.sync_token_dialog();
                 views::main_window::render(ctx, self);
                 dialogs::render(ctx, self);

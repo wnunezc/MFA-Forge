@@ -2315,7 +2315,7 @@ dependencies = [
 
 [[package]]
 name = "mfa-forge"
-version = "0.1.22"
+version = "0.1.24"
 dependencies = [
  "anyhow",
  "clap",
@@ -2336,7 +2336,7 @@ dependencies = [
 
 [[package]]
 name = "mfa-forge-application"
-version = "0.1.22"
+version = "0.1.24"
 dependencies = [
  "mfa-forge-core",
  "mfa-forge-storage",
@@ -2348,7 +2348,7 @@ dependencies = [
 
 [[package]]
 name = "mfa-forge-core"
-version = "0.1.22"
+version = "0.1.24"
 dependencies = [
  "secrecy",
  "serde",
@@ -2360,7 +2360,7 @@ dependencies = [
 
 [[package]]
 name = "mfa-forge-gui"
-version = "0.1.22"
+version = "0.1.24"
 dependencies = [
  "directories",
  "eframe",
@@ -2387,7 +2387,7 @@ dependencies = [
 
 [[package]]
 name = "mfa-forge-platform-windows"
-version = "0.1.22"
+version = "0.1.24"
 dependencies = [
  "mfa-forge-application",
  "raw-window-handle",
@@ -2397,7 +2397,7 @@ dependencies = [
 
 [[package]]
 name = "mfa-forge-storage"
-version = "0.1.22"
+version = "0.1.24"
 dependencies = [
  "aes-gcm",
  "argon2",

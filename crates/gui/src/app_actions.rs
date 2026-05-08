@@ -194,7 +194,6 @@ impl ForgeApp {
         self.state.account_uri_dialog.close();
         self.state.notice_dialog.close();
         self.state.update_dialog.close();
-        self.startup_update_check_attempted = false;
         self.set_banner(
             BannerTone::Info,
             tr("Session locked. The master password is required again."),
