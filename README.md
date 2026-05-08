@@ -4,12 +4,12 @@ MFA-Forge is a secure MFA token manager written in Rust. The current release lin
 
 ## Release status
 
-- current candidate line follows the workspace version in `Cargo.toml`: `0.1.N -> RCN`
-- local MSI artifact for the current candidate follows `target/rc/MFA-Forge-RCN-x64.msi`
-- the exact upgrade path from the installed previous RC to the current candidate RC must be recorded alongside publication evidence
+- current stable candidate follows the workspace version in `Cargo.toml`
+- stable MSI artifacts follow `target/rc/MFA-Forge-<version>-x64.msi`
+- the exact upgrade path from the installed previous release line to the current candidate must be recorded alongside publication evidence
 - the `RC19 -> RC20` edge is validated as a manual MSI upgrade because the installed RC19 baseline did not include `mfa-forge-launcher.exe`
 - startup launcher-driven RC checks on GUI open only exist from the `RC21` code line onward; the first exact installed edge closed with that mechanism is `RC25 installed -> open GUI -> update to RC26`
-- no RC becomes public until the tag, MSI assets, checksum, and GitHub prerelease are created
+- no stable release becomes public until the tag, MSI assets, checksum, and GitHub release are created
 
 ## Repository guide
 
@@ -19,7 +19,7 @@ MFA-Forge is a secure MFA token manager written in Rust. The current release lin
 - AI agent token/session guide: `docs/ai-agents-token-sessions.md`
 - AI agent copy/paste handoff: `docs/ai-agents-copy-paste.md`
 - release validation policy: `docs/release-validation.md`
-- RC policy and draft release notes: `docs/release/`
+- release policy and notes: `docs/release/`
 - architecture notes and guardrails: `docs/architecture-hardening.md`
 
 ## Current surface
@@ -32,7 +32,7 @@ Implemented now:
 - Windows desktop GUI for unlock, workspace navigation, account management, import flows, token display, history restore, export, theme persistence, language persistence, and localized help
 - dedicated `mfa-forge-agent` binary for process-scoped local automation
 - dedicated `mfa-forge-mcp` binary for MCP clients over JSON-RPC `stdio`
-- dedicated `mfa-forge-launcher` binary for release discovery, checksum verification, and MSI handoff, installed by the MSI from `RC20` onward and triggered on GUI open from the `RC21` line onward; the validated automatic installed edge is currently `RC25 -> RC26`
+- dedicated `mfa-forge-launcher` binary for release discovery, checksum verification, and MSI handoff, installed by the MSI from `RC20` onward and triggered on GUI open from the `RC21` line onward; the validated automatic installed edge is `RC25 -> RC26`, which is the baseline updater proof promoted into `1.0.0`
 - explicit short-lived grants for token delivery, account provisioning, and audit reporting
 - local JSONL audit trail without raw secrets, TOTP values, or `otpauth://` URIs
 - recent audit-log review with bounded tail reads and local compaction

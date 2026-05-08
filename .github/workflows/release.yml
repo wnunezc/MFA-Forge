@@ -5,6 +5,7 @@ on:
   push:
     tags:
       - "v*-rc.*"
+      - "v*.*.*"
 
 env:
   CARGO_TERM_COLOR: always
@@ -39,23 +40,32 @@ jobs:
         shell: powershell
         run: |
           $tagName = "${{ github.ref_name }}"
-          if ($tagName -notmatch '^v(?<version>\d+\.\d+\.(?<patch>\d+))-rc\.(?<rc>\d+)$') {
-            throw "Unsupported tag format: $tagName. Expected v0.1.N-rc.N"
-          }
+          if ($tagName -match '^v(?<version>\d+\.\d+\.(?<patch>\d+))-rc\.(?<rc>\d+)$') {
+            if ($Matches.patch -ne $Matches.rc) {
+              throw "RC number must match patch number for MFA-Forge: $tagName"
+            }
 
-          if ($Matches.patch -ne $Matches.rc) {
-            throw "RC number must match patch number for MFA-Forge: $tagName"
+            $version = $Matches.version
+            $rcNumber = $Matches.rc
+            $assetName = "MFA-Forge-RC$rcNumber-x64.msi"
+            $notesPath = "docs/release/$version-rc.$rcNumber-draft.md"
+            $prerelease = "true"
+            $makeLatest = "false"
+          } elseif ($tagName -match '^v(?<version>\d+\.\d+\.\d+)$') {
+            $version = $Matches.version
+            $assetName = "MFA-Forge-$version-x64.msi"
+            $notesPath = "docs/release/$version-release.md"
+            $prerelease = "false"
+            $makeLatest = "true"
+          } else {
+            throw "Unsupported tag format: $tagName. Expected v0.1.N-rc.N or v1.0.0"
           }
-
-          $version = $Matches.version
-          $rcNumber = $Matches.rc
-          $assetName = "MFA-Forge-RC$rcNumber-x64.msi"
-          $notesPath = "docs/release/$version-rc.$rcNumber-draft.md"
 
           "version=$version" >> $env:GITHUB_OUTPUT
-          "rc_number=$rcNumber" >> $env:GITHUB_OUTPUT
           "asset_name=$assetName" >> $env:GITHUB_OUTPUT
           "notes_path=$notesPath" >> $env:GITHUB_OUTPUT
+          "prerelease=$prerelease" >> $env:GITHUB_OUTPUT
+          "make_latest=$makeLatest" >> $env:GITHUB_OUTPUT
 
       - name: Validate Cargo version
         shell: powershell
@@ -124,8 +134,8 @@ jobs:
           name: MFA-Forge ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           body_path: target/release-notes.md
-          prerelease: true
-          make_latest: false
+          prerelease: ${{ steps.release_meta.outputs.prerelease }}
+          make_latest: ${{ steps.release_meta.outputs.make_latest }}
           files: |
             target/rc/*.msi
             target/rc/*.sha256.txt
