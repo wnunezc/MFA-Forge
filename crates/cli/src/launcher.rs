@@ -34,8 +34,12 @@ struct LauncherCli {
     apply: bool,
     #[arg(long)]
     passive: bool,
+    #[arg(long, value_name = "PID")]
+    parent_pid: Option<u32>,
     #[arg(long, value_name = "MSIEXEC_PATH", default_value = "msiexec.exe")]
     msiexec_path: PathBuf,
+    #[arg(long, hide = true)]
+    helper: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -119,6 +123,9 @@ enum LauncherMode {
 /// Execute the launcher CLI flow for staging and optional MSI handoff.
 pub fn run() -> Result<()> {
     let cli = LauncherCli::parse();
+    if spawn_apply_helper_if_needed(&cli)? {
+        return Ok(());
+    }
     let mode = resolve_mode(&cli)?;
     let prepared = match mode {
         LauncherMode::Explicit {
@@ -146,7 +153,12 @@ pub fn run() -> Result<()> {
     let install_result = if cli.apply {
         prepared
             .as_ref()
-            .map(|prepared| run_msiexec(&prepared.installer_command))
+            .map(|prepared| {
+                if let Some(parent_pid) = cli.parent_pid {
+                    close_parent_process(parent_pid)?;
+                }
+                run_msiexec(&prepared.installer_command)
+            })
             .transpose()?
     } else {
         None
@@ -262,6 +274,65 @@ fn resolve_mode(cli: &LauncherCli) -> Result<LauncherMode> {
             "Use either --release-json + --asset-name for explicit mode or --repo + --current-version for automatic mode."
         ),
     }
+}
+
+fn spawn_apply_helper_if_needed(cli: &LauncherCli) -> Result<bool> {
+    if !cli.apply || cli.helper {
+        return Ok(false);
+    }
+
+    fs::create_dir_all(&cli.output_dir).with_context(|| {
+        format!(
+            "No se pudo crear el directorio {}",
+            cli.output_dir.display()
+        )
+    })?;
+
+    let current_exe = std::env::current_exe()
+        .with_context(|| "No se pudo resolver la ruta del launcher actual".to_owned())?
+        .canonicalize()
+        .with_context(|| "No se pudo resolver la ruta canónica del launcher actual".to_owned())?;
+    let helper_path = cli.output_dir.join("mfa-forge-launcher-helper.exe");
+
+    let helper_canonical = if helper_path.exists() {
+        Some(
+            helper_path
+                .canonicalize()
+                .with_context(|| format!("No se pudo resolver {}", helper_path.display()))?,
+        )
+    } else {
+        None
+    };
+
+    if helper_canonical.as_ref() == Some(&current_exe) {
+        return Ok(false);
+    }
+
+    fs::copy(&current_exe, &helper_path).with_context(|| {
+        format!(
+            "No se pudo copiar {} a {}",
+            current_exe.display(),
+            helper_path.display()
+        )
+    })?;
+
+    let mut command = Command::new(&helper_path);
+    command.args(cli.to_args(true));
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000);
+    }
+
+    command.spawn().with_context(|| {
+        format!(
+            "No se pudo iniciar el launcher helper {}",
+            helper_path.display()
+        )
+    })?;
+
+    Ok(true)
 }
 
 fn prepare_update(
@@ -454,6 +525,20 @@ fn format_release_version(version: ReleaseVersion) -> String {
     format!("{}.{}.{}", version.major, version.minor, version.patch)
 }
 
+fn close_parent_process(parent_pid: u32) -> Result<()> {
+    let status = Command::new("taskkill")
+        .args(["/PID", &parent_pid.to_string(), "/T", "/F"])
+        .status()
+        .with_context(|| format!("No se pudo cerrar el proceso padre {parent_pid}"))?;
+
+    if !status.success() {
+        bail!("No se pudo cerrar el proceso padre {parent_pid}");
+    }
+
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    Ok(())
+}
+
 fn read_text_source(source: &str) -> Result<String> {
     if let Some(path) = local_path_source(source) {
         return fs::read_to_string(&path)
@@ -641,6 +726,56 @@ fn write_report(path: &Path, report: &LauncherReport) -> Result<()> {
     let payload = serde_json::to_string_pretty(report)?;
     file.write_all(payload.as_bytes())
         .with_context(|| format!("No se pudo escribir {}", path.display()))
+}
+
+impl LauncherCli {
+    fn to_args(&self, include_helper: bool) -> Vec<String> {
+        let mut args = Vec::new();
+
+        if let Some(release_json) = &self.release_json {
+            args.push("--release-json".to_owned());
+            args.push(release_json.clone());
+        }
+        if let Some(asset_name) = &self.asset_name {
+            args.push("--asset-name".to_owned());
+            args.push(asset_name.clone());
+        }
+        if let Some(repo) = &self.repo {
+            args.push("--repo".to_owned());
+            args.push(repo.clone());
+        }
+        if let Some(current_version) = &self.current_version {
+            args.push("--current-version".to_owned());
+            args.push(current_version.clone());
+        }
+
+        args.push("--output-dir".to_owned());
+        args.push(self.output_dir.display().to_string());
+
+        if let Some(report_path) = &self.report_path {
+            args.push("--report-path".to_owned());
+            args.push(report_path.display().to_string());
+        }
+        if self.apply {
+            args.push("--apply".to_owned());
+        }
+        if self.passive {
+            args.push("--passive".to_owned());
+        }
+        if let Some(parent_pid) = self.parent_pid {
+            args.push("--parent-pid".to_owned());
+            args.push(parent_pid.to_string());
+        }
+
+        args.push("--msiexec-path".to_owned());
+        args.push(self.msiexec_path.display().to_string());
+
+        if include_helper {
+            args.push("--helper".to_owned());
+        }
+
+        args
+    }
 }
 
 #[cfg(test)]

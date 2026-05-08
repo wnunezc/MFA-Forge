@@ -90,6 +90,13 @@ impl ForgeApp {
             .arg(&report_path)
             .arg("--apply");
 
+        if automatic {
+            command
+                .arg("--passive")
+                .arg("--parent-pid")
+                .arg(std::process::id().to_string());
+        }
+
         #[cfg(windows)]
         command.creation_flags(0x08000000);
 
