@@ -73,13 +73,6 @@ fn update_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
     let palette = theme::palette(app.theme_preference());
     let mut open = app.state().update_dialog.open;
     let current_version = app.current_release_version();
-    let target_tag = match app.next_release_tag() {
-        Ok(tag) => tag,
-        Err(error) => {
-            app.state_mut().update_dialog.error = Some(error);
-            "unknown".to_owned()
-        }
-    };
     let stage_directory = match app.update_stage_directory() {
         Ok(path) => path.display().to_string(),
         Err(error) => {
@@ -96,16 +89,12 @@ fn update_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
         .default_width(560.0)
         .show(ctx, |ui| {
             ui.label(tr(
-                "MFA-Forge does not auto-update when you open the GUI. This action starts the installed launcher for the next RC, verifies the published checksum, and then hands control to Windows Installer.",
+                "MFA-Forge checks GitHub for newer prerelease RCs when you open the GUI. This action forces the installed launcher to check again, verify the published checksum, and then hand control to Windows Installer if an update exists.",
             ));
             ui.separator();
 
             ui.label(RichText::new(tr("Current version")).strong());
             ui.label(current_version);
-
-            ui.add_space(6.0);
-            ui.label(RichText::new(tr("Target RC")).strong());
-            ui.label(target_tag);
 
             ui.add_space(6.0);
             ui.label(RichText::new(tr("Stage directory")).strong());
@@ -114,7 +103,7 @@ fn update_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
             ui.add_space(8.0);
             ui.label(
                 RichText::new(tr(
-                    "The launcher stays explicit: no background update, no silent install, and no vault access.",
+                    "The launcher stays responsible for version detection, checksum verification, and the MSI handoff. It still has no vault access.",
                 ))
                 .small()
                 .color(palette.secondary_text),
@@ -134,7 +123,7 @@ fn update_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                     .button(format!("⬇ {}", tr("Start launcher")))
                     .clicked()
                 {
-                    app.start_next_rc_update();
+                    app.start_latest_rc_update(false);
                 }
             });
         });

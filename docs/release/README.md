@@ -40,4 +40,5 @@ Before publishing an RC:
 2. confirm the intended tag, checksum, and release assets
 3. update the matching RC draft with the final evidence
 4. if the installed previous RC lacked the launcher or another required trigger, record the exact manual upgrade path for that edge instead of calling it launcher-driven
-5. publish as a GitHub prerelease for the `0.1.x` line
+5. if startup update on GUI open is part of the RC story, validate that exact installed edge on a real installed baseline instead of inferring it from launcher presence alone
+6. publish as a GitHub prerelease for the `0.1.x` line

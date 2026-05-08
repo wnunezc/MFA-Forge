@@ -19,9 +19,13 @@ use url::Url;
 )]
 struct LauncherCli {
     #[arg(long, value_name = "PATH_OR_URL")]
-    release_json: String,
+    release_json: Option<String>,
     #[arg(long, value_name = "MSI_NAME")]
-    asset_name: String,
+    asset_name: Option<String>,
+    #[arg(long, value_name = "OWNER/REPO")]
+    repo: Option<String>,
+    #[arg(long, value_name = "VERSION")]
+    current_version: Option<String>,
     #[arg(long, value_name = "OUTPUT_DIR")]
     output_dir: PathBuf,
     #[arg(long, value_name = "REPORT_PATH")]
@@ -34,15 +38,17 @@ struct LauncherCli {
     msiexec_path: PathBuf,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct ReleaseMetadata {
     tag_name: String,
     prerelease: bool,
+    #[serde(default)]
+    draft: bool,
     html_url: Option<String>,
     assets: Vec<ReleaseAsset>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct ReleaseAsset {
     name: String,
     browser_download_url: String,
@@ -51,18 +57,22 @@ struct ReleaseAsset {
 #[derive(Debug, Serialize)]
 struct LauncherReport {
     release_source: String,
-    release_tag: String,
-    prerelease: bool,
+    current_version: Option<String>,
+    update_available: bool,
+    update_target_version: Option<String>,
+    release_tag: Option<String>,
+    prerelease: Option<bool>,
     release_url: Option<String>,
-    asset_name: String,
-    checksum_asset_name: String,
-    staged_msi_path: String,
-    staged_checksum_path: String,
-    expected_sha256: String,
-    actual_sha256: String,
+    asset_name: Option<String>,
+    checksum_asset_name: Option<String>,
+    staged_msi_path: Option<String>,
+    staged_checksum_path: Option<String>,
+    expected_sha256: Option<String>,
+    actual_sha256: Option<String>,
     checksum_verified: bool,
     installer_command: Vec<String>,
     install_result: Option<InstallResult>,
+    status: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -73,6 +83,9 @@ struct InstallResult {
 
 #[derive(Debug)]
 struct PreparedUpdate {
+    current_version: Option<String>,
+    update_target_version: Option<String>,
+    release_source: String,
     release_tag: String,
     prerelease: bool,
     release_url: Option<String>,
@@ -85,55 +98,130 @@ struct PreparedUpdate {
     installer_command: Vec<String>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct ReleaseVersion {
+    major: u64,
+    minor: u64,
+    patch: u64,
+}
+
+enum LauncherMode {
+    Explicit {
+        release_source: String,
+        asset_name: String,
+    },
+    Auto {
+        repo: String,
+        current_version: ReleaseVersion,
+    },
+}
+
 /// Execute the launcher CLI flow for staging and optional MSI handoff.
 pub fn run() -> Result<()> {
     let cli = LauncherCli::parse();
-    let prepared = prepare_update(
-        &cli.release_json,
-        &cli.asset_name,
-        &cli.output_dir,
-        &cli.msiexec_path,
-        cli.passive,
-    )?;
+    let mode = resolve_mode(&cli)?;
+    let prepared = match mode {
+        LauncherMode::Explicit {
+            release_source,
+            asset_name,
+        } => Some(prepare_update(
+            &release_source,
+            &asset_name,
+            &cli.output_dir,
+            &cli.msiexec_path,
+            cli.passive,
+        )?),
+        LauncherMode::Auto {
+            repo,
+            current_version,
+        } => prepare_latest_prerelease_update(
+            &repo,
+            current_version,
+            &cli.output_dir,
+            &cli.msiexec_path,
+            cli.passive,
+        )?,
+    };
 
     let install_result = if cli.apply {
-        Some(run_msiexec(&prepared.installer_command)?)
+        prepared
+            .as_ref()
+            .map(|prepared| run_msiexec(&prepared.installer_command))
+            .transpose()?
     } else {
         None
     };
 
-    let report = LauncherReport {
-        release_source: cli.release_json.clone(),
-        release_tag: prepared.release_tag.clone(),
-        prerelease: prepared.prerelease,
-        release_url: prepared.release_url.clone(),
-        asset_name: prepared.asset_name.clone(),
-        checksum_asset_name: prepared.checksum_asset_name.clone(),
-        staged_msi_path: prepared.staged_msi_path.display().to_string(),
-        staged_checksum_path: prepared.staged_checksum_path.display().to_string(),
-        expected_sha256: prepared.expected_sha256.clone(),
-        actual_sha256: prepared.actual_sha256.clone(),
-        checksum_verified: prepared.expected_sha256 == prepared.actual_sha256,
-        installer_command: prepared.installer_command.clone(),
-        install_result,
+    let report = match prepared {
+        Some(prepared) => LauncherReport {
+            release_source: prepared.release_source.clone(),
+            current_version: prepared.current_version.clone(),
+            update_available: true,
+            update_target_version: prepared.update_target_version.clone(),
+            release_tag: Some(prepared.release_tag.clone()),
+            prerelease: Some(prepared.prerelease),
+            release_url: prepared.release_url.clone(),
+            asset_name: Some(prepared.asset_name.clone()),
+            checksum_asset_name: Some(prepared.checksum_asset_name.clone()),
+            staged_msi_path: Some(prepared.staged_msi_path.display().to_string()),
+            staged_checksum_path: Some(prepared.staged_checksum_path.display().to_string()),
+            expected_sha256: Some(prepared.expected_sha256.clone()),
+            actual_sha256: Some(prepared.actual_sha256.clone()),
+            checksum_verified: prepared.expected_sha256 == prepared.actual_sha256,
+            installer_command: prepared.installer_command.clone(),
+            install_result,
+            status: "update-prepared".to_owned(),
+        },
+        None => LauncherReport {
+            release_source: match (&cli.repo, &cli.release_json) {
+                (Some(repo), _) => github_releases_url(repo),
+                (None, Some(release_json)) => release_json.clone(),
+                (None, None) => "unknown".to_owned(),
+            },
+            current_version: cli.current_version.clone(),
+            update_available: false,
+            update_target_version: None,
+            release_tag: None,
+            prerelease: None,
+            release_url: None,
+            asset_name: None,
+            checksum_asset_name: None,
+            staged_msi_path: None,
+            staged_checksum_path: None,
+            expected_sha256: None,
+            actual_sha256: None,
+            checksum_verified: false,
+            installer_command: Vec::new(),
+            install_result: None,
+            status: "no-update".to_owned(),
+        },
     };
 
     if let Some(report_path) = cli.report_path.as_ref() {
         write_report(report_path, &report)?;
     }
 
-    println!("Release: {}", report.release_tag);
-    println!("MSI staged at: {}", report.staged_msi_path);
-    println!("Checksum verified: {}", report.checksum_verified);
-    println!("Installer command: {}", report.installer_command.join(" "));
-    if let Some(result) = &report.install_result {
-        println!(
-            "Installer exit code: {}",
-            result
-                .exit_code
-                .map(|value| value.to_string())
-                .unwrap_or_else(|| "unknown".to_owned())
-        );
+    println!("Launcher status: {}", report.status);
+    if report.update_available {
+        if let Some(release_tag) = report.release_tag.as_deref() {
+            println!("Release: {}", release_tag);
+        }
+        if let Some(staged_msi_path) = report.staged_msi_path.as_deref() {
+            println!("MSI staged at: {}", staged_msi_path);
+        }
+        println!("Checksum verified: {}", report.checksum_verified);
+        println!("Installer command: {}", report.installer_command.join(" "));
+        if let Some(result) = &report.install_result {
+            println!(
+                "Installer exit code: {}",
+                result
+                    .exit_code
+                    .map(|value| value.to_string())
+                    .unwrap_or_else(|| "unknown".to_owned())
+            );
+        }
+    } else if let Some(current_version) = report.current_version.as_deref() {
+        println!("No newer prerelease found for {}", current_version);
     }
 
     if let Some(result) = &report.install_result
@@ -145,11 +233,35 @@ pub fn run() -> Result<()> {
                 .exit_code
                 .map(|value| value.to_string())
                 .unwrap_or_else(|| "unknown".to_owned()),
-            report.staged_msi_path
+            report
+                .staged_msi_path
+                .as_deref()
+                .unwrap_or("<unknown-msi-path>")
         );
     }
 
     Ok(())
+}
+
+fn resolve_mode(cli: &LauncherCli) -> Result<LauncherMode> {
+    match (
+        cli.release_json.as_deref(),
+        cli.asset_name.as_deref(),
+        cli.repo.as_deref(),
+        cli.current_version.as_deref(),
+    ) {
+        (Some(release_source), Some(asset_name), None, None) => Ok(LauncherMode::Explicit {
+            release_source: release_source.to_owned(),
+            asset_name: asset_name.to_owned(),
+        }),
+        (None, None, Some(repo), Some(current_version)) => Ok(LauncherMode::Auto {
+            repo: repo.to_owned(),
+            current_version: parse_plain_version(current_version)?,
+        }),
+        _ => bail!(
+            "Use either --release-json + --asset-name for explicit mode or --repo + --current-version for automatic mode."
+        ),
+    }
 }
 
 fn prepare_update(
@@ -159,10 +271,71 @@ fn prepare_update(
     msiexec_path: &Path,
     passive: bool,
 ) -> Result<PreparedUpdate> {
+    let release = load_release_metadata(release_source)?;
+    prepare_update_from_release(
+        release_source,
+        None,
+        None,
+        release,
+        asset_name,
+        output_dir,
+        msiexec_path,
+        passive,
+    )
+}
+
+fn prepare_latest_prerelease_update(
+    repo: &str,
+    current_version: ReleaseVersion,
+    output_dir: &Path,
+    msiexec_path: &Path,
+    passive: bool,
+) -> Result<Option<PreparedUpdate>> {
+    let release_source = github_releases_url(repo);
+    let payload = read_text_source(&release_source)?;
+    let releases: Vec<ReleaseMetadata> = serde_json::from_str(&payload).with_context(|| {
+        format!("No se pudo parsear metadata de releases desde {release_source}")
+    })?;
+    let release = select_latest_prerelease(&releases).filter(|release| {
+        parse_release_tag(&release.tag_name).is_some_and(|version| version > current_version)
+    });
+
+    let Some(release) = release else {
+        return Ok(None);
+    };
+
+    let target_version = parse_release_tag(&release.tag_name)
+        .ok_or_else(|| anyhow!("Tag RC no soportado: {}", release.tag_name))?;
+    let asset_name = format!("MFA-Forge-RC{}-x64.msi", target_version.patch);
+
+    let prepared = prepare_update_from_release(
+        &release_source,
+        Some(format_release_version(current_version)),
+        Some(format_release_version(target_version)),
+        release.clone(),
+        &asset_name,
+        output_dir,
+        msiexec_path,
+        passive,
+    )?;
+
+    Ok(Some(prepared))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn prepare_update_from_release(
+    release_source: &str,
+    current_version: Option<String>,
+    update_target_version: Option<String>,
+    release: ReleaseMetadata,
+    asset_name: &str,
+    output_dir: &Path,
+    msiexec_path: &Path,
+    passive: bool,
+) -> Result<PreparedUpdate> {
     fs::create_dir_all(output_dir)
         .with_context(|| format!("No se pudo crear el directorio {}", output_dir.display()))?;
 
-    let release = load_release_metadata(release_source)?;
     if !release.prerelease {
         bail!(
             "El release {} no está marcado como prerelease; las RC de MFA-Forge deben validarse como prerelease.",
@@ -199,6 +372,9 @@ fn prepare_update(
     }
 
     Ok(PreparedUpdate {
+        current_version,
+        update_target_version,
+        release_source: release_source.to_owned(),
         release_tag: release.tag_name,
         prerelease: release.prerelease,
         release_url: release.html_url,
@@ -220,6 +396,62 @@ fn load_release_metadata(release_source: &str) -> Result<ReleaseMetadata> {
             release_source
         )
     })
+}
+
+fn github_releases_url(repo: &str) -> String {
+    format!("https://api.github.com/repos/{repo}/releases")
+}
+
+fn select_latest_prerelease(releases: &[ReleaseMetadata]) -> Option<&ReleaseMetadata> {
+    releases
+        .iter()
+        .filter(|release| release.prerelease && !release.draft)
+        .filter_map(|release| {
+            parse_release_tag(&release.tag_name).map(|version| (version, release))
+        })
+        .max_by_key(|(version, _)| *version)
+        .map(|(_, release)| release)
+}
+
+fn parse_release_tag(tag: &str) -> Option<ReleaseVersion> {
+    let trimmed = tag.strip_prefix('v')?;
+    let (version_part, suffix) = trimmed.split_once("-rc.")?;
+    let version = parse_plain_version(version_part).ok()?;
+    let rc_number = suffix.parse::<u64>().ok()?;
+    (version.patch == rc_number).then_some(version)
+}
+
+fn parse_plain_version(version: &str) -> Result<ReleaseVersion> {
+    let mut parts = version.split('.');
+    let major = parts
+        .next()
+        .ok_or_else(|| anyhow!("Formato de versión no soportado: {version}"))?
+        .parse::<u64>()
+        .with_context(|| format!("Formato de versión no soportado: {version}"))?;
+    let minor = parts
+        .next()
+        .ok_or_else(|| anyhow!("Formato de versión no soportado: {version}"))?
+        .parse::<u64>()
+        .with_context(|| format!("Formato de versión no soportado: {version}"))?;
+    let patch = parts
+        .next()
+        .ok_or_else(|| anyhow!("Formato de versión no soportado: {version}"))?
+        .parse::<u64>()
+        .with_context(|| format!("Formato de versión no soportado: {version}"))?;
+
+    if parts.next().is_some() {
+        bail!("Formato de versión no soportado: {version}");
+    }
+
+    Ok(ReleaseVersion {
+        major,
+        minor,
+        patch,
+    })
+}
+
+fn format_release_version(version: ReleaseVersion) -> String {
+    format!("{}.{}.{}", version.major, version.minor, version.patch)
 }
 
 fn read_text_source(source: &str) -> Result<String> {
@@ -496,5 +728,42 @@ mod tests {
                 "/passive".to_owned()
             ]
         );
+    }
+
+    #[test]
+    fn parse_release_tag_requires_matching_patch_and_rc_number() {
+        let version = parse_release_tag("v0.1.21-rc.21").expect("tag should parse");
+        assert_eq!(format_release_version(version), "0.1.21");
+        assert!(parse_release_tag("v0.1.21-rc.22").is_none());
+    }
+
+    #[test]
+    fn select_latest_prerelease_ignores_drafts_and_non_matching_tags() {
+        let releases = vec![
+            ReleaseMetadata {
+                tag_name: "v0.1.20-rc.20".to_owned(),
+                prerelease: true,
+                draft: false,
+                html_url: None,
+                assets: Vec::new(),
+            },
+            ReleaseMetadata {
+                tag_name: "v0.1.21-rc.21".to_owned(),
+                prerelease: true,
+                draft: true,
+                html_url: None,
+                assets: Vec::new(),
+            },
+            ReleaseMetadata {
+                tag_name: "v0.1.22-rc.22".to_owned(),
+                prerelease: true,
+                draft: false,
+                html_url: None,
+                assets: Vec::new(),
+            },
+        ];
+
+        let latest = select_latest_prerelease(&releases).expect("latest prerelease should exist");
+        assert_eq!(latest.tag_name, "v0.1.22-rc.22");
     }
 }

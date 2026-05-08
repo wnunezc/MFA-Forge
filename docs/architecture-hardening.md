@@ -69,8 +69,14 @@ Desde el 2026-05-07 queda fijada esta regla:
 En la línea `RC20`:
 
 - la MSI vuelve a incluir `mfa-forge-launcher.exe`
-- la GUI expone un trigger explícito para delegar el siguiente RC al launcher instalado
+- la GUI solo expone un trigger explícito para delegar el siguiente RC al launcher instalado
 - la ruta exacta `RC19 -> RC20` sigue siendo una actualización manual por MSI, porque la RC19 instalada no contenía launcher
+
+En la línea `RC21` y posteriores:
+
+- la lógica de startup update ya existe dentro de la GUI instalada
+- el launcher descubre la prerelease RC más nueva publicada, valida checksum y delega a MSI
+- cada edge exacto instalado sigue requiriendo validación explícita; no basta con asumir que la mecánica general existe
 
 ## Mitigaciones estructurales para AV
 

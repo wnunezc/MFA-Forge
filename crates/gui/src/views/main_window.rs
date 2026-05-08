@@ -134,7 +134,7 @@ fn top_menu_bar(ctx: &egui::Context, app: &mut ForgeApp) {
                                     ui.close_menu();
                                 }
                                 ui.separator();
-                                if ui.button(tr("Install next RC update")).clicked() {
+                                if ui.button(tr("Install latest RC update")).clicked() {
                                     app.open_update_dialog();
                                     ui.close_menu();
                                 }

@@ -51,6 +51,7 @@ pub struct ForgeApp {
     pub(crate) pending_history_job: Option<PendingTask<HistoryTaskResult>>,
     pub(crate) pending_token_job: Option<PendingTask<TokenTaskResult>>,
     pub(crate) pending_search_job: Option<PendingTask<SearchTaskResult>>,
+    pub(crate) startup_update_check_attempted: bool,
     pub(crate) help_markdown_cache: CommonMarkCache,
 }
 
@@ -79,6 +80,7 @@ impl ForgeApp {
             pending_history_job: None,
             pending_token_job: None,
             pending_search_job: None,
+            startup_update_check_attempted: false,
             help_markdown_cache: CommonMarkCache::default(),
         })
     }
@@ -698,6 +700,10 @@ impl eframe::App for ForgeApp {
         match self.state.screen {
             Screen::Loader => views::loader::render(ctx, self),
             Screen::Main => {
+                if !self.startup_update_check_attempted {
+                    self.startup_update_check_attempted = true;
+                    self.start_latest_rc_update(true);
+                }
                 self.sync_token_dialog();
                 views::main_window::render(ctx, self);
                 dialogs::render(ctx, self);
