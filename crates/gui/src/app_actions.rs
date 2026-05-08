@@ -1,5 +1,6 @@
-use std::path::PathBuf;
+use std::{env, fs, path::PathBuf, process::Command};
 
+use directories::ProjectDirs;
 use eframe::egui;
 use rfd::FileDialog;
 use secrecy::SecretString;
@@ -16,6 +17,103 @@ use crate::{
 };
 
 impl ForgeApp {
+    pub fn current_release_version(&self) -> &'static str {
+        env!("CARGO_PKG_VERSION")
+    }
+
+    pub fn next_release_tag(&self) -> Result<String, String> {
+        let (_, _, patch) = current_version_triplet()?;
+        let next_rc = patch + 1;
+        Ok(format!("v0.1.{next_rc}-rc.{next_rc}"))
+    }
+
+    pub fn update_stage_directory(&self) -> Result<PathBuf, String> {
+        release_update_stage_directory()
+    }
+
+    pub fn open_update_dialog(&mut self) {
+        self.state.update_dialog.open();
+    }
+
+    pub fn start_next_rc_update(&mut self) {
+        self.state.update_dialog.error = None;
+
+        let target_tag = match self.next_release_tag() {
+            Ok(tag) => tag,
+            Err(error) => {
+                self.state.update_dialog.error = Some(error);
+                return;
+            }
+        };
+
+        let (_, _, patch) = match current_version_triplet() {
+            Ok(parts) => parts,
+            Err(error) => {
+                self.state.update_dialog.error = Some(error);
+                return;
+            }
+        };
+        let next_rc = patch + 1;
+        let release_json =
+            format!("https://api.github.com/repos/wnunezc/MFA-Forge/releases/tags/{target_tag}");
+        let asset_name = format!("MFA-Forge-RC{next_rc}-x64.msi");
+
+        let launcher_path = match launcher_path_from_current_install() {
+            Ok(path) => path,
+            Err(error) => {
+                self.state.update_dialog.error = Some(error);
+                return;
+            }
+        };
+
+        let stage_dir = match release_update_stage_directory() {
+            Ok(path) => path,
+            Err(error) => {
+                self.state.update_dialog.error = Some(error);
+                return;
+            }
+        };
+
+        if let Err(error) = fs::create_dir_all(&stage_dir) {
+            self.state.update_dialog.error = Some(format!(
+                "The local update staging directory could not be created: {error}"
+            ));
+            return;
+        }
+
+        let report_path = stage_dir.join("launcher-report.json");
+        let mut command = Command::new(&launcher_path);
+        command
+            .arg("--release-json")
+            .arg(&release_json)
+            .arg("--asset-name")
+            .arg(&asset_name)
+            .arg("--output-dir")
+            .arg(&stage_dir)
+            .arg("--report-path")
+            .arg(&report_path)
+            .arg("--apply");
+
+        match command.spawn() {
+            Ok(_) => {
+                self.state.update_dialog.close();
+                self.set_banner(
+                    BannerTone::Info,
+                    trf(
+                        "Launcher started for {target}. It will download the MSI, verify the checksum, and then open Windows Installer.",
+                        &[("target", &target_tag)],
+                    ),
+                );
+            }
+            Err(error) => {
+                self.state.update_dialog.error = Some(trf(
+                    "The update launcher could not be started: {error}",
+                    &[("error", &error.to_string())],
+                ));
+            }
+        }
+    }
+
     pub fn initialize_vault(&mut self) {
         let mut password = std::mem::take(&mut self.state.loader.password_input);
         let mut confirmation = std::mem::take(&mut self.state.loader.confirm_password_input);
@@ -83,6 +181,7 @@ impl ForgeApp {
         self.state.remove_directory_dialog.clear();
         self.state.account_uri_dialog.close();
         self.state.notice_dialog.close();
+        self.state.update_dialog.close();
         self.set_banner(
             BannerTone::Info,
             tr("Session locked. The master password is required again."),
@@ -1037,6 +1136,58 @@ impl ForgeApp {
             );
         }
     }
+}
+
+fn current_version_triplet() -> Result<(u64, u64, u64), String> {
+    let version = env!("CARGO_PKG_VERSION");
+    let mut parts = version.split('.');
+    let major = parts
+        .next()
+        .ok_or_else(|| format!("Unsupported MFA-Forge version format: {version}"))?
+        .parse::<u64>()
+        .map_err(|error| format!("Unsupported MFA-Forge version format '{version}': {error}"))?;
+    let minor = parts
+        .next()
+        .ok_or_else(|| format!("Unsupported MFA-Forge version format: {version}"))?
+        .parse::<u64>()
+        .map_err(|error| format!("Unsupported MFA-Forge version format '{version}': {error}"))?;
+    let patch = parts
+        .next()
+        .ok_or_else(|| format!("Unsupported MFA-Forge version format: {version}"))?
+        .parse::<u64>()
+        .map_err(|error| format!("Unsupported MFA-Forge version format '{version}': {error}"))?;
+
+    if parts.next().is_some() {
+        return Err(format!("Unsupported MFA-Forge version format: {version}"));
+    }
+
+    Ok((major, minor, patch))
+}
+
+fn launcher_path_from_current_install() -> Result<PathBuf, String> {
+    let launcher_path = env::current_exe()
+        .map_err(|error| format!("The current GUI executable path could not be resolved: {error}"))?
+        .with_file_name("mfa-forge-launcher.exe");
+
+    if launcher_path.is_file() {
+        Ok(launcher_path)
+    } else {
+        Err(trf(
+            "The installed launcher could not be found at {path}. This build cannot start the launcher-driven path.",
+            &[("path", &launcher_path.display().to_string())],
+        ))
+    }
+}
+
+fn release_update_stage_directory() -> Result<PathBuf, String> {
+    let project_dirs = ProjectDirs::from("dev", "OpsZone", "MFA-Forge")
+        .ok_or_else(|| "The MFA-Forge local data directory could not be resolved.".to_owned())?;
+    let (_, _, patch) = current_version_triplet()?;
+    let next_rc = patch + 1;
+    Ok(project_dirs
+        .data_local_dir()
+        .join("updates")
+        .join(format!("rc{next_rc}")))
 }
 
 fn apply_default_source(metadata: &mut mfa_forge_core::AccountMetadata, source: &str) {

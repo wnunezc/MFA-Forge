@@ -1,10 +1,10 @@
 # Guia de Usuario de MFA-Forge
 
 ## Resumen
-MFA-Forge es un gestor MFA local-first para Windows. Su proposito principal es guardar cuentas TOTP en un vault cifrado y exponer un flujo coherente entre la GUI, la CLI humana, la sesion de agente local y el servidor MCP. La aplicacion esta pensada para que los secretos permanezcan locales, las acciones sensibles sean explicitas y la automatizacion no salte silenciosamente los limites de unlock y grants.
+MFA-Forge es un gestor MFA con enfoque local para Windows. Su proposito principal es guardar cuentas TOTP en un vault cifrado y exponer un flujo coherente entre la GUI, la CLI humana, la sesion de agente local y el servidor MCP. La aplicacion esta pensada para que los secretos permanezcan locales, las acciones sensibles sean explicitas y la automatizacion no salte silenciosamente los limites de desbloqueo y autorizaciones.
 
 ## Primeros pasos
-En la primera ejecucion debes crear una contrasena maestra. Esa contrasena es la llave principal del vault: sin ella no puedes agregar cuentas, importar seeds, exportar backups, rotar la contrasena ni generar codigos.
+En la primera ejecucion debes crear una contrasena maestra. Esa contrasena es la llave principal del vault: sin ella no puedes agregar cuentas, importar semillas, exportar backups, rotar la contrasena ni generar codigos.
 
 Despues de ingresar la contrasena maestra, MFA-Forge todavia ejecuta la verificacion adicional de Windows usada en esta linea de release. En la practica, la app solo queda utilizable cuando ambos pasos terminan bien.
 
@@ -12,7 +12,7 @@ Una vez desbloqueada, la ventana principal queda dividida en tres zonas de traba
 
 - el arbol de workspaces a la izquierda
 - la lista de cuentas en el centro
-- las acciones contextuales y dialogos sobre ese layout
+- las acciones contextuales y dialogos sobre esa distribucion
 
 La idea es que primero selecciones el contexto y luego operes sobre ese alcance sin cambiar de pantalla.
 
@@ -43,7 +43,7 @@ MFA-Forge soporta cuatro formas principales de cargar una cuenta TOTP:
 
 El alta manual es la mejor opcion cuando quieres controlar servicio, usuario, workspace, algoritmo, digitos y periodo de forma directa.
 
-La importacion por URI, QR o archivo es mejor cuando otro sistema ya te entrego el seed en formato TOTP estandar. En esos casos, MFA-Forge parsea el origen, extrae los campos de la cuenta y guarda el secreto cifrado dentro del vault.
+La importacion por URI, QR o archivo es mejor cuando otro sistema ya te entrego la semilla en formato TOTP estandar. En esos casos, MFA-Forge parsea el origen, extrae los campos de la cuenta y guarda el secreto cifrado dentro del vault.
 
 Comportamiento importante:
 
@@ -55,9 +55,9 @@ Comportamiento importante:
 ## Tokens e historial
 La ventana de token es la vista operativa para leer un codigo. Cuando la abres desde una fila, MFA-Forge lee el TOTP actual del vault desbloqueado y muestra la cuenta regresiva del periodo vigente.
 
-Que debes esperar al refrescar:
+Que debes esperar al actualizar:
 
-- si el mismo periodo TOTP sigue activo, un refresh puede devolver exactamente el mismo codigo
+- si el mismo periodo TOTP sigue activo, una actualizacion puede devolver exactamente el mismo codigo
 - si el periodo cambio, el codigo visible se actualiza de inmediato
 - copiar un codigo solo copia el token actual, no el secreto
 
@@ -74,11 +74,11 @@ Usa historial cuando una cuenta fue borrada por error, cuando la metadata se mod
 ## Backup e importacion
 La exportacion crea un backup cifrado de MFA-Forge. Su objetivo es preservar el vault completo en un formato que MFA-Forge pueda reimportar despues.
 
-La importacion tiene un efecto fuerte a proposito: tras validar el archivo, reemplaza el contenido del vault activo por el backup cifrado importado. Esto sirve para recuperacion o migracion entre equipos, pero debe tratarse como una restauracion controlada, no como un merge.
+La importacion tiene un efecto fuerte a proposito: tras validar el archivo, reemplaza el contenido del vault activo por el backup cifrado importado. Esto sirve para recuperacion o migracion entre equipos, pero debe tratarse como una restauracion controlada, no como una fusion.
 
 Practica recomendada:
 
-- crear un backup antes de cambios grandes o imports masivos
+- crear un backup antes de cambios grandes o importaciones masivas
 - guardar los backups en una ubicacion protegida
 - confirmar que estas importando exactamente el backup esperado antes de aplicarlo
 
@@ -87,10 +87,10 @@ La sesion de agente local y el servidor MCP existen para automatizacion local, p
 
 Comportamiento base:
 
-- ambos arrancan en `deny-by-default`
-- abrir una sesion requiere el flujo nativo de unlock
+- ambos arrancan con denegacion por defecto
+- abrir una sesion requiere el flujo nativo de desbloqueo
 - la sesion desbloqueada solo vive mientras el proceso siga activo
-- las operaciones sensibles requieren grants explicitos o prompts dedicados
+- las operaciones sensibles requieren autorizaciones explicitas o prompts dedicados
 
 Ejemplos de acciones protegidas:
 
@@ -101,26 +101,26 @@ Ejemplos de acciones protegidas:
 
 Eso significa que la automatizacion es posible, pero sigue acotada por aprobacion explicita del usuario y por la vida de la sesion local.
 
-## Troubleshooting
-Si el unlock falla:
+## Resolucion de problemas
+Si el desbloqueo falla:
 
 - confirma primero la contrasena maestra
-- luego completa el prompt de verificacion de Windows si aparece
-- si la app vuelve al loader, repite el flujo y revisa si hay una ventana nativa fuera de la app principal
+- luego completa la ventana de verificacion de Windows si aparece
+- si la app vuelve a la pantalla inicial, repite el flujo y revisa si hay una ventana nativa fuera de la app principal
 
 Si una importacion falla:
 
 - confirma que el origen siga trayendo una carga `otpauth://` valida
 - verifica que el secreto Base32 siga completo
-- verifica que la imagen QR seleccionada corresponda realmente al seed esperado
+- verifica que la imagen QR seleccionada corresponda realmente a la semilla esperada
 
 Si el token no cambia:
 
 - revisa los segundos restantes del periodo TOTP actual
-- prueba otro refresh cuando el periodo ya haya vencido
+- prueba otra actualizacion cuando el periodo ya haya vencido
 
 Si una automatizacion es denegada:
 
 - revisa si la sesion sigue abierta
-- revisa si el grant requerido expiro o ya fue consumido
+- revisa si la autorizacion requerida expiro o ya fue consumida
 - abre de nuevo la sesion local y vuelve a aprobar la accion exacta cuando haga falta

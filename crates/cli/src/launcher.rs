@@ -165,7 +165,7 @@ fn prepare_update(
     let release = load_release_metadata(release_source)?;
     if !release.prerelease {
         bail!(
-            "El release {} no está marcado como prerelease; RC18 debe validarse como prerelease.",
+            "El release {} no está marcado como prerelease; las RC de MFA-Forge deben validarse como prerelease.",
             release.tag_name
         );
     }

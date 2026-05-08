@@ -57,6 +57,7 @@ pub struct ForgeApp {
 impl ForgeApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Result<Self, String> {
         let preferences = theme::load_preferences();
+        theme::setup_fonts(&cc.egui_ctx);
         theme::apply(&cc.egui_ctx, preferences.theme);
         i18n::init(preferences.language);
 

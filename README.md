@@ -4,17 +4,19 @@ MFA-Forge is a secure MFA token manager written in Rust. The current release lin
 
 ## Release status
 
-- current candidate line: `RC19`
-- numeric version: `0.1.19`
-- local MSI artifact: `target/rc/MFA-Forge-RC19-x64.msi`
-- the exact upgrade path from installed `RC18` to `RC19` must be recorded alongside the RC19 publication evidence
-- `RC19` becomes public only after the tag, MSI assets, checksum, and GitHub prerelease are created
+- current candidate line follows the workspace version in `Cargo.toml`: `0.1.N -> RCN`
+- local MSI artifact for the current candidate follows `target/rc/MFA-Forge-RCN-x64.msi`
+- the exact upgrade path from the installed previous RC to the current candidate RC must be recorded alongside publication evidence
+- the `RC19 -> RC20` edge is validated as a manual MSI upgrade because the installed RC19 baseline did not include `mfa-forge-launcher.exe`
+- no RC becomes public until the tag, MSI assets, checksum, and GitHub prerelease are created
 
 ## Repository guide
 
 - implemented surface: this `README.md`
 - roadmap and pending work: `ROADMAP.md`
 - feature inventory and product direction: `FEATURE_MAP.md`
+- AI agent token/session guide: `docs/ai-agents-token-sessions.md`
+- AI agent copy/paste handoff: `docs/ai-agents-copy-paste.md`
 - release validation policy: `docs/release-validation.md`
 - RC policy and draft release notes: `docs/release/`
 - architecture notes and guardrails: `docs/architecture-hardening.md`
@@ -29,7 +31,7 @@ Implemented now:
 - Windows desktop GUI for unlock, workspace navigation, account management, import flows, token display, history restore, export, theme persistence, language persistence, and localized help
 - dedicated `mfa-forge-agent` binary for process-scoped local automation
 - dedicated `mfa-forge-mcp` binary for MCP clients over JSON-RPC `stdio`
-- dedicated `mfa-forge-launcher` binary for release discovery, checksum verification, and MSI handoff
+- dedicated `mfa-forge-launcher` binary for release discovery, checksum verification, and MSI handoff, installed by the MSI from `RC20` onward
 - explicit short-lived grants for token delivery, account provisioning, and audit reporting
 - local JSONL audit trail without raw secrets, TOTP values, or `otpauth://` URIs
 - recent audit-log review with bounded tail reads and local compaction

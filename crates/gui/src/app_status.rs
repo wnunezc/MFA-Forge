@@ -6,7 +6,7 @@ use mfa_forge_core::TotpToken;
 
 use crate::{
     app::ForgeApp,
-    i18n::{self, Language, tr},
+    i18n::{self, Language, tr, trf},
     state::{AppState, Banner, BannerTone, LoaderMode, Screen},
     theme,
 };
@@ -73,7 +73,10 @@ impl ForgeApp {
         if let Err(error) = theme::save_preference(preference) {
             self.set_banner(
                 BannerTone::Warning,
-                format!("The theme was applied, but the preference could not be saved: {error}"),
+                trf(
+                    "The theme was applied, but the preference could not be saved: {error}",
+                    &[("error", &error)],
+                ),
             );
         }
     }
@@ -89,7 +92,10 @@ impl ForgeApp {
         if let Err(error) = theme::save_language_preference(preference) {
             self.set_banner(
                 BannerTone::Warning,
-                format!("The language was applied, but the preference could not be saved: {error}"),
+                trf(
+                    "The language was applied, but the preference could not be saved: {error}",
+                    &[("error", &error)],
+                ),
             );
         }
     }

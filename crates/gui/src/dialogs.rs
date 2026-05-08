@@ -11,6 +11,7 @@ use crate::{
 
 pub fn render(ctx: &egui::Context, app: &mut ForgeApp) {
     notice_dialog(ctx, app);
+    update_dialog(ctx, app);
     add_account_dialog(ctx, app);
     edit_account_dialog(ctx, app);
     import_dialog(ctx, app);
@@ -61,6 +62,85 @@ fn notice_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
 
     if !open {
         app.state_mut().notice_dialog.close();
+    }
+}
+
+fn update_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
+    if !app.state().update_dialog.open {
+        return;
+    }
+
+    let palette = theme::palette(app.theme_preference());
+    let mut open = app.state().update_dialog.open;
+    let current_version = app.current_release_version();
+    let target_tag = match app.next_release_tag() {
+        Ok(tag) => tag,
+        Err(error) => {
+            app.state_mut().update_dialog.error = Some(error);
+            "unknown".to_owned()
+        }
+    };
+    let stage_directory = match app.update_stage_directory() {
+        Ok(path) => path.display().to_string(),
+        Err(error) => {
+            let unavailable = trf("Unavailable: {error}", &[("error", &error)]);
+            app.state_mut().update_dialog.error = Some(error);
+            unavailable
+        }
+    };
+
+    egui::Window::new(tr("RC update"))
+        .open(&mut open)
+        .collapsible(false)
+        .resizable(false)
+        .default_width(560.0)
+        .show(ctx, |ui| {
+            ui.label(tr(
+                "MFA-Forge does not auto-update when you open the GUI. This action starts the installed launcher for the next RC, verifies the published checksum, and then hands control to Windows Installer.",
+            ));
+            ui.separator();
+
+            ui.label(RichText::new(tr("Current version")).strong());
+            ui.label(current_version);
+
+            ui.add_space(6.0);
+            ui.label(RichText::new(tr("Target RC")).strong());
+            ui.label(target_tag);
+
+            ui.add_space(6.0);
+            ui.label(RichText::new(tr("Stage directory")).strong());
+            ui.label(stage_directory);
+
+            ui.add_space(8.0);
+            ui.label(
+                RichText::new(tr(
+                    "The launcher stays explicit: no background update, no silent install, and no vault access.",
+                ))
+                .small()
+                .color(palette.secondary_text),
+            );
+
+            if let Some(error) = &app.state().update_dialog.error {
+                ui.add_space(8.0);
+                ui.colored_label(palette.error_text, error);
+            }
+
+            ui.separator();
+            ui.horizontal(|ui| {
+                if ui.button(format!("✖ {}", tr("Cancel"))).clicked() {
+                    app.state_mut().update_dialog.close();
+                }
+                if ui
+                    .button(format!("⬇ {}", tr("Start launcher")))
+                    .clicked()
+                {
+                    app.start_next_rc_update();
+                }
+            });
+        });
+
+    if !open {
+        app.state_mut().update_dialog.close();
     }
 }
 
@@ -607,7 +687,7 @@ fn restore_dialog(ctx: &egui::Context, app: &mut ForgeApp) {
                 });
 
                 columns[1].vertical(|ui| {
-                    ui.label(RichText::new("Preview").strong());
+                    ui.label(RichText::new(tr("Preview")).strong());
                     ui.add_space(6.0);
 
                     if let Some(selected) = entries

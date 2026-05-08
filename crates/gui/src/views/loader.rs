@@ -16,7 +16,7 @@ pub fn render(ctx: &egui::Context, app: &mut ForgeApp) {
                     .color(palette.brand_accent),
             );
             ui.label(
-                RichText::new("Developer-first authenticator with an encrypted local vault")
+                RichText::new(tr("Developer-first authenticator with an encrypted local vault"))
                     .size(15.0)
                     .color(palette.secondary_text),
             );
@@ -25,9 +25,9 @@ pub fn render(ctx: &egui::Context, app: &mut ForgeApp) {
         ui.add_space(10.0);
         ui.vertical_centered(|ui| {
             ui.label(
-                RichText::new(
+                RichText::new(tr(
                     "Local storage | Argon2id + AES-256-GCM | No admin | GUI + CLI + future MCP/API",
-                )
+                ))
                 .small()
                 .monospace()
                 .color(palette.muted_text),
@@ -61,9 +61,7 @@ fn left_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
                     LoaderMode::Initialize => {
                         tr("First run. Create the master password that will protect the vault.")
                     }
-                    LoaderMode::Unlock => {
-                        "Unlock the vault to access accounts and generate tokens.".to_owned()
-                    }
+                    LoaderMode::Unlock => tr("Unlock the vault to access accounts and generate tokens."),
                 })
                 .color(palette.secondary_text),
             );
@@ -80,11 +78,11 @@ fn left_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
             ui.add(
                 TextEdit::singleline(&mut app.state_mut().loader.password_input)
                     .password(true)
-                    .hint_text("Enter a strong password"),
+                    .hint_text(tr("Enter a strong password")),
             );
 
             if app.state().loader.current_mode() == LoaderMode::Initialize {
-                ui.label(RichText::new("Confirm password").small());
+                ui.label(RichText::new(tr("Confirm password")).small());
                 ui.add(
                     TextEdit::singleline(&mut app.state_mut().loader.confirm_password_input)
                         .password(true)
@@ -101,9 +99,9 @@ fn left_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
                 ui.horizontal(|ui| {
                     ui.spinner();
                     let status = if app.is_unlock_preparing() {
-                        "Validating the master password and preparing unlock..."
+                        tr("Validating the master password and preparing unlock...")
                     } else {
-                        "Waiting for Windows verification (PIN / Hello)..."
+                        tr("Waiting for Windows verification (PIN / Hello)...")
                     };
                     ui.label(RichText::new(status).small().color(palette.warning_text));
                 });
@@ -140,7 +138,9 @@ fn left_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
                     } else if app.is_unlock_verifying() {
                         ui.add_space(6.0);
                         ui.label(
-                            RichText::new("The PIN / Windows Hello prompt should appear outside the app.")
+                            RichText::new(tr(
+                                "The PIN / Windows Hello prompt should appear outside the app.",
+                            ))
                                 .small()
                                 .color(palette.secondary_text),
                         );
@@ -174,25 +174,27 @@ fn right_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
                 ui,
                 palette,
                 &tr("Loader / unlock"),
-                "Initial screen to create or unlock the vault without exposing secrets.",
+                &tr("Initial screen to create or unlock the vault without exposing secrets."),
             );
             bullet(
                 ui,
                 palette,
                 &tr("Main window"),
-                "Dashboard with accounts, quick actions, search, and detail context.",
+                &tr("Dashboard with accounts, quick actions, search, and detail context."),
             );
             bullet(
                 ui,
                 palette,
                 &tr("Dialogs"),
-                "Add, import, edit, password rotation, token, export, and delete flows.",
+                &tr("Add, import, edit, password rotation, token, export, and delete flows."),
             );
             bullet(
                 ui,
                 palette,
-                "Visible roadmap",
-                "The GUI already leaves clear room for future local API and MCP integration without requiring them today.",
+                &tr("Visible roadmap"),
+                &tr(
+                    "The GUI already leaves clear room for future local API and MCP integration without requiring them today.",
+                ),
             );
 
             ui.add_space(14.0);
@@ -203,12 +205,13 @@ fn right_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
                     .strong()
                     .color(palette.warning_text),
             );
-            ui.label("• The vault remains encrypted on disk.");
-            ui.label("• The UI never shows raw secrets.");
+            ui.label(format!("• {}", tr("The vault remains encrypted on disk.")));
+            ui.label(format!("• {}", tr("The UI never shows raw secrets.")));
             ui.label(format!("• {}", app.admin_requirement_label()));
-            ui.label(
-                "• Future OS integrations may require additional permissions, but not the current MVP.",
-            );
+            ui.label(format!(
+                "• {}",
+                tr("Future OS integrations may require additional permissions, but not the current MVP."),
+            ));
             ui.add_space(10.0);
             if ui.button(tr("Help")).clicked() {
                 app.open_help_dialog();

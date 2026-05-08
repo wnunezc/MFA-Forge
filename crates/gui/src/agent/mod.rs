@@ -9,6 +9,7 @@ mod unlock;
 mod wire;
 
 pub use mcp::run_mcp_server;
+pub use prompt_helper::maybe_run_native_grant_prompt_from_env;
 pub use stdio::run_stdio_session;
 pub use unlock::{
     AuditReportingGrantPromptDecision, PasswordRotationPromptDecision,

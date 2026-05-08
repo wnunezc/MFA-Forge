@@ -524,6 +524,24 @@ impl NoticeDialogState {
 }
 
 #[derive(Debug, Default)]
+pub struct UpdateDialogState {
+    pub open: bool,
+    pub error: Option<String>,
+}
+
+impl UpdateDialogState {
+    pub fn open(&mut self) {
+        self.open = true;
+        self.error = None;
+    }
+
+    pub fn close(&mut self) {
+        self.open = false;
+        self.error = None;
+    }
+}
+
+#[derive(Debug, Default)]
 pub struct HelpDialogState {
     pub open: bool,
     pub search_query: String,
@@ -567,6 +585,7 @@ pub struct AppState {
     pub export_dialog: ExportDialogState,
     pub account_uri_dialog: AccountUriDialogState,
     pub notice_dialog: NoticeDialogState,
+    pub update_dialog: UpdateDialogState,
     pub help_dialog: HelpDialogState,
     pub search: SearchState,
 }
@@ -604,6 +623,7 @@ impl AppState {
             export_dialog: ExportDialogState::default(),
             account_uri_dialog: AccountUriDialogState::default(),
             notice_dialog: NoticeDialogState::default(),
+            update_dialog: UpdateDialogState::default(),
             help_dialog: HelpDialogState::default(),
             search: SearchState::default(),
         }

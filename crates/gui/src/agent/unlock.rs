@@ -71,17 +71,29 @@ fn request_transient_repaint(ctx: &egui::Context, opened_at: Instant) {
     }
 }
 
+fn allow_prompt_event_loop_any_thread(options: &mut eframe::NativeOptions) {
+    #[cfg(target_os = "windows")]
+    {
+        use winit::platform::windows::EventLoopBuilderExtWindows as _;
+
+        options.event_loop_builder = Some(Box::new(|builder| {
+            builder.with_any_thread(true);
+        }));
+    }
+}
+
 pub fn run_unlock_window() -> Result<VaultFacade, String> {
     let theme_preference = theme::load_preference();
     i18n::init(theme::load_language_preference());
     let outcome = Rc::new(RefCell::new(None));
+    let window_title = tr("MFA-Forge Agent Session");
     let app_icon =
         eframe::icon_data::from_png_bytes(include_bytes!("../../assets/icons/app-icon.png"))
             .map_err(|error| error.to_string())?;
 
-    let options = eframe::NativeOptions {
+    let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("MFA-Forge Agent Session")
+            .with_title(window_title.clone())
             .with_inner_size([520.0, 260.0])
             .with_min_inner_size([520.0, 260.0])
             .with_resizable(false)
@@ -89,9 +101,10 @@ pub fn run_unlock_window() -> Result<VaultFacade, String> {
         persist_window: false,
         ..Default::default()
     };
+    allow_prompt_event_loop_any_thread(&mut options);
 
     eframe::run_native(
-        "MFA-Forge Agent Session",
+        window_title.as_str(),
         options,
         Box::new({
             let outcome = Rc::clone(&outcome);
@@ -151,10 +164,11 @@ pub fn run_generate_token_grant_window(
         eframe::icon_data::from_png_bytes(include_bytes!("../../assets/icons/app-icon.png"))
             .map_err(|error| error.to_string())?;
     let account = account.clone();
+    let window_title = tr("MFA-Forge Token Grant");
 
-    let options = eframe::NativeOptions {
+    let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("MFA-Forge Token Grant")
+            .with_title(window_title)
             .with_inner_size([760.0, 360.0])
             .with_min_inner_size([640.0, 300.0])
             .with_clamp_size_to_monitor_size(true)
@@ -163,6 +177,7 @@ pub fn run_generate_token_grant_window(
         persist_window: false,
         ..Default::default()
     };
+    allow_prompt_event_loop_any_thread(&mut options);
 
     let run_result = eframe::run_native(
         "mfa-forge-token-grant-prompt",
@@ -181,6 +196,7 @@ pub fn run_generate_token_grant_window(
         }),
     );
     run_result.map_err(|error| error.to_string())?;
+    platform_auth::settle_closed_prompt_window();
 
     let decision = outcome
         .borrow_mut()
@@ -204,10 +220,11 @@ pub fn run_account_provisioning_grant_window(
     let app_icon =
         eframe::icon_data::from_png_bytes(include_bytes!("../../assets/icons/app-icon.png"))
             .map_err(|error| error.to_string())?;
+    let window_title = tr("MFA-Forge Provisioning Grant");
 
-    let options = eframe::NativeOptions {
+    let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("MFA-Forge Provisioning Grant")
+            .with_title(window_title)
             .with_inner_size([760.0, 380.0])
             .with_min_inner_size([640.0, 320.0])
             .with_clamp_size_to_monitor_size(true)
@@ -216,6 +233,7 @@ pub fn run_account_provisioning_grant_window(
         persist_window: false,
         ..Default::default()
     };
+    allow_prompt_event_loop_any_thread(&mut options);
 
     let run_result = eframe::run_native(
         "mfa-forge-provisioning-grant-prompt",
@@ -234,6 +252,7 @@ pub fn run_account_provisioning_grant_window(
         }),
     );
     run_result.map_err(|error| error.to_string())?;
+    platform_auth::settle_closed_prompt_window();
 
     let decision = outcome
         .borrow_mut()
@@ -257,10 +276,11 @@ pub fn run_audit_reporting_grant_window(
     let app_icon =
         eframe::icon_data::from_png_bytes(include_bytes!("../../assets/icons/app-icon.png"))
             .map_err(|error| error.to_string())?;
+    let window_title = tr("MFA-Forge Audit Reporting Grant");
 
-    let options = eframe::NativeOptions {
+    let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("MFA-Forge Audit Reporting Grant")
+            .with_title(window_title)
             .with_inner_size([760.0, 380.0])
             .with_min_inner_size([640.0, 320.0])
             .with_clamp_size_to_monitor_size(true)
@@ -269,6 +289,7 @@ pub fn run_audit_reporting_grant_window(
         persist_window: false,
         ..Default::default()
     };
+    allow_prompt_event_loop_any_thread(&mut options);
 
     let run_result = eframe::run_native(
         "mfa-forge-audit-reporting-grant-prompt",
@@ -287,6 +308,7 @@ pub fn run_audit_reporting_grant_window(
         }),
     );
     run_result.map_err(|error| error.to_string())?;
+    platform_auth::settle_closed_prompt_window();
 
     let decision = outcome
         .borrow_mut()
@@ -307,10 +329,11 @@ pub fn run_password_rotation_window() -> Result<PasswordRotationPromptDecision, 
     let app_icon =
         eframe::icon_data::from_png_bytes(include_bytes!("../../assets/icons/app-icon.png"))
             .map_err(|error| error.to_string())?;
+    let window_title = tr("MFA-Forge Password Rotation");
 
-    let options = eframe::NativeOptions {
+    let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("MFA-Forge Password Rotation")
+            .with_title(window_title)
             .with_inner_size([760.0, 420.0])
             .with_min_inner_size([640.0, 360.0])
             .with_clamp_size_to_monitor_size(true)
@@ -319,6 +342,7 @@ pub fn run_password_rotation_window() -> Result<PasswordRotationPromptDecision, 
         persist_window: false,
         ..Default::default()
     };
+    allow_prompt_event_loop_any_thread(&mut options);
 
     let run_result = eframe::run_native(
         "mfa-forge-password-rotation-prompt",
@@ -335,6 +359,7 @@ pub fn run_password_rotation_window() -> Result<PasswordRotationPromptDecision, 
         }),
     );
     run_result.map_err(|error| error.to_string())?;
+    platform_auth::settle_closed_prompt_window();
 
     let decision = outcome
         .borrow_mut()
@@ -402,6 +427,7 @@ impl TokenGrantApprovalApp {
         ttl_seconds: u64,
         outcome: Rc<RefCell<Option<TokenGrantPromptDecision>>>,
     ) -> Self {
+        theme::setup_fonts(&cc.egui_ctx);
         theme::apply(&cc.egui_ctx, theme_preference);
 
         Self {
@@ -442,6 +468,7 @@ impl ProvisioningGrantApprovalApp {
         ttl_minutes: u64,
         outcome: Rc<RefCell<Option<ProvisioningGrantPromptDecision>>>,
     ) -> Self {
+        theme::setup_fonts(&cc.egui_ctx);
         theme::apply(&cc.egui_ctx, theme_preference);
 
         Self {
@@ -488,6 +515,7 @@ impl AuditReportingGrantApprovalApp {
         ttl_minutes: u64,
         outcome: Rc<RefCell<Option<AuditReportingGrantPromptDecision>>>,
     ) -> Self {
+        theme::setup_fonts(&cc.egui_ctx);
         theme::apply(&cc.egui_ctx, theme_preference);
 
         Self {
@@ -532,6 +560,7 @@ impl PasswordRotationApprovalApp {
         theme_preference: ThemePreference,
         outcome: Rc<RefCell<Option<PasswordRotationPromptDecision>>>,
     ) -> Self {
+        theme::setup_fonts(&cc.egui_ctx);
         theme::apply(&cc.egui_ctx, theme_preference);
 
         Self {
@@ -631,7 +660,7 @@ impl eframe::App for TokenGrantApprovalApp {
                 ui.set_width(ui.available_width());
                 ui.with_layout(Layout::top_down(Align::Min), |ui| {
                     ui.add_space(4.0);
-                    ui.heading("MFA-Forge Token Grant");
+                    ui.heading(tr("MFA-Forge Token Grant"));
                     ui.add_space(8.0);
                     ui.label(
                         tr("This approval allows a single TOTP to be delivered through MCP. The secret is not exposed and the grant expires quickly if it is not used."),
@@ -700,14 +729,16 @@ impl eframe::App for ProvisioningGrantApprovalApp {
                 ui.set_width(ui.available_width());
                 ui.with_layout(Layout::top_down(Align::Min), |ui| {
                     ui.add_space(4.0);
-                    ui.heading("MFA-Forge Provisioning Grant");
+                    ui.heading(tr("MFA-Forge Provisioning Grant"));
                     ui.add_space(8.0);
                     ui.label(
                         tr("This approval allows new MFA accounts to be provisioned through MCP without additional intervention until a short quota is exhausted. Secrets are accepted as input, but they are not returned or written to the audit log."),
                     );
                     ui.add_space(10.0);
                     ui.label(RichText::new(tr("Grant scope")).strong());
-                    ui.monospace("Allowed tools: create_account, import_otpauth, update_account, remove_account");
+                    ui.monospace(tr(
+                        "Allowed tools: create_account, import_otpauth, update_account, remove_account",
+                    ));
                     ui.add_space(6.0);
                     ui.label(trf(
                         "If you approve, this MCP process will be able to create, import, update, or remove up to {accounts} accounts during the next {minutes} minutes.",
@@ -770,14 +801,16 @@ impl eframe::App for AuditReportingGrantApprovalApp {
                     ui.set_width(ui.available_width());
                     ui.with_layout(Layout::top_down(Align::Min), |ui| {
                         ui.add_space(4.0);
-                        ui.heading("MFA-Forge Audit Reporting Grant");
+                        ui.heading(tr("MFA-Forge Audit Reporting Grant"));
                         ui.add_space(8.0);
                         ui.label(
                             tr("This approval allows review of the vault public history and the recent local audit log without opening new surfaces. The grant expires quickly and uses a short read quota."),
                         );
                         ui.add_space(10.0);
                         ui.label(RichText::new(tr("Grant scope")).strong());
-                        ui.monospace("Allowed tools: list_history, read_audit_events, summarize_audit_events");
+                        ui.monospace(tr(
+                            "Allowed tools: list_history, read_audit_events, summarize_audit_events",
+                        ));
                         ui.add_space(6.0);
                         ui.label(trf(
                             "If you approve, this MCP process will be able to perform up to {reads} sensitive reads during the next {minutes} minutes.",
@@ -834,7 +867,7 @@ impl eframe::App for PasswordRotationApprovalApp {
                     ui.set_width(ui.available_width());
                     ui.with_layout(Layout::top_down(Align::Min), |ui| {
                     ui.add_space(4.0);
-                    ui.heading("MFA-Forge Password Rotation");
+                    ui.heading(tr("MFA-Forge Password Rotation"));
                     ui.add_space(8.0);
                     ui.label(
                         tr("This approval executes a real master-password rotation and re-encrypts the current vault immediately. The new password is captured only in this native window and never travels through stdio or MCP."),
@@ -901,6 +934,7 @@ impl AgentUnlockApp {
         theme_preference: ThemePreference,
         outcome: Rc<RefCell<Option<Result<VaultFacade, String>>>>,
     ) -> Result<Self, String> {
+        theme::setup_fonts(&cc.egui_ctx);
         theme::apply(&cc.egui_ctx, theme_preference);
 
         Ok(Self {
@@ -1071,7 +1105,7 @@ impl eframe::App for AgentUnlockApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.with_layout(Layout::top_down(Align::Min), |ui| {
                 ui.add_space(4.0);
-                ui.heading("MFA-Forge Agent Session");
+                ui.heading(tr("MFA-Forge Agent Session"));
                 ui.add_space(8.0);
                 ui.label(
                     tr("This window grants a temporary session for a local agent. The session stays open only while the process remains alive."),

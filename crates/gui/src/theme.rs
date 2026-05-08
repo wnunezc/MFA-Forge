@@ -93,6 +93,28 @@ pub fn apply(ctx: &egui::Context, preference: ThemePreference) {
     ctx.set_style(style);
 }
 
+/// Instala fallbacks tipograficos de Windows para Latin, Devanagari y CJK.
+pub fn setup_fonts(ctx: &egui::Context) {
+    let mut fonts = egui::FontDefinitions::default();
+
+    add_windows_font_if_exists(&mut fonts, "windows_ui", r"C:\Windows\Fonts\segoeui.ttf", 0);
+    add_windows_font_if_exists(&mut fonts, "windows_cjk", r"C:\Windows\Fonts\msyh.ttc", 0);
+    add_windows_font_if_exists(
+        &mut fonts,
+        "windows_indic",
+        r"C:\Windows\Fonts\Nirmala.ttc",
+        0,
+    );
+
+    insert_if_present(&mut fonts, FontFamily::Proportional, "windows_ui");
+    push_if_present(&mut fonts, FontFamily::Proportional, "windows_cjk");
+    push_if_present(&mut fonts, FontFamily::Proportional, "windows_indic");
+    push_if_present(&mut fonts, FontFamily::Monospace, "windows_cjk");
+    push_if_present(&mut fonts, FontFamily::Monospace, "windows_indic");
+
+    ctx.set_fonts(fonts);
+}
+
 /// Devuelve la preferencia guardada; si no existe o está dañada, usa oscuro.
 pub fn load_preference() -> ThemePreference {
     load_preferences().theme
@@ -201,6 +223,44 @@ pub fn palette(preference: ThemePreference) -> ThemePalette {
             status_idle_text: Color32::from_rgb(92, 98, 108),
             token_text: Color32::from_rgb(58, 95, 149),
         },
+    }
+}
+
+fn add_windows_font_if_exists(
+    fonts: &mut egui::FontDefinitions,
+    name: &str,
+    path: &str,
+    index: u32,
+) {
+    if let Ok(bytes) = fs::read(path) {
+        fonts.font_data.insert(
+            name.to_owned(),
+            egui::FontData {
+                font: bytes.into(),
+                index,
+                tweak: Default::default(),
+            },
+        );
+    }
+}
+
+fn push_if_present(fonts: &mut egui::FontDefinitions, family: FontFamily, name: &str) {
+    if fonts.font_data.contains_key(name) {
+        fonts
+            .families
+            .entry(family)
+            .or_default()
+            .push(name.to_owned());
+    }
+}
+
+fn insert_if_present(fonts: &mut egui::FontDefinitions, family: FontFamily, name: &str) {
+    if fonts.font_data.contains_key(name) {
+        fonts
+            .families
+            .entry(family)
+            .or_default()
+            .insert(0, name.to_owned());
     }
 }
 

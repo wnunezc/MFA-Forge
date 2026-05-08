@@ -43,6 +43,18 @@
   "Visible": "Visible",
   "Waiting for vault initialization or unlock.": "Waiting for vault initialization or unlock.",
   "What you are looking at": "What you are looking at",
+  "Current version": "Current version",
+  "Install next RC update": "Install next RC update",
+  "Launcher started for {target}. It will download the MSI, verify the checksum, and then open Windows Installer.": "Launcher started for {target}. It will download the MSI, verify the checksum, and then open Windows Installer.",
+  "MFA-Forge does not auto-update when you open the GUI. This action starts the installed launcher for the next RC, verifies the published checksum, and then hands control to Windows Installer.": "MFA-Forge does not auto-update when you open the GUI. This action starts the installed launcher for the next RC, verifies the published checksum, and then hands control to Windows Installer.",
+  "RC update": "RC update",
+  "Stage directory": "Stage directory",
+  "Start launcher": "Start launcher",
+  "Target RC": "Target RC",
+  "The installed launcher could not be found at {path}. This build cannot start the launcher-driven path.": "The installed launcher could not be found at {path}. This build cannot start the launcher-driven path.",
+  "The launcher stays explicit: no background update, no silent install, and no vault access.": "The launcher stays explicit: no background update, no silent install, and no vault access.",
+  "The update launcher could not be started: {error}": "The update launcher could not be started: {error}",
+  "Unavailable: {error}": "Unavailable: {error}",
   "Workspace": "Workspace",
   "Workspaces": "Workspaces"
 }

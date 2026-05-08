@@ -82,7 +82,7 @@ fn top_menu_bar(ctx: &egui::Context, app: &mut ForgeApp) {
                         ui.add_space(8.0);
 
                         ui.add_enabled_ui(!vault_busy, |ui| {
-                            if toolbar_button(ui, "🏢 Workspace").clicked() {
+                            if toolbar_button(ui, &format!("🏢 {}", tr("Workspace"))).clicked() {
                                 app.open_create_directory_dialog(None);
                             }
                         });
@@ -115,7 +115,7 @@ fn top_menu_bar(ctx: &egui::Context, app: &mut ForgeApp) {
                                 }
                             });
 
-                            ui.menu_button("▶ Vault", |ui| {
+                            ui.menu_button(format!("▶ {}", tr("Vault")), |ui| {
                                 if ui.button(tr("Import from backup file")).clicked() {
                                     app.import_vault_backup();
                                     ui.close_menu();
@@ -131,6 +131,11 @@ fn top_menu_bar(ctx: &egui::Context, app: &mut ForgeApp) {
                                 }
                                 if ui.button(tr("Rotate password")).clicked() {
                                     app.open_change_password_dialog();
+                                    ui.close_menu();
+                                }
+                                ui.separator();
+                                if ui.button(tr("Install next RC update")).clicked() {
+                                    app.open_update_dialog();
                                     ui.close_menu();
                                 }
                             });
@@ -273,7 +278,7 @@ fn render_workspace_pane(ui: &mut egui::Ui, app: &mut ForgeApp, pane_height: f32
 
                 if directories.is_empty() {
                     ui.label(
-                        RichText::new("No workspaces have been created yet.")
+                        RichText::new(tr("No workspaces have been created yet."))
                             .small()
                             .color(palette.secondary_text),
                     );
@@ -361,7 +366,7 @@ fn render_accounts_pane(ui: &mut egui::Ui, app: &mut ForgeApp, pane_height: f32)
                     ui.horizontal(|ui| {
                         ui.add(egui::Spinner::new());
                         ui.label(
-                            RichText::new("Searching accounts and workspaces...")
+                            RichText::new(tr("Searching accounts and workspaces..."))
                                 .small()
                                 .color(palette.secondary_text),
                         );
@@ -407,7 +412,7 @@ fn render_empty_state(
 
     if active_search_query.is_some() {
         ui.label(
-            RichText::new("No accounts or workspaces matched the current view.")
+            RichText::new(tr("No accounts or workspaces matched the current view."))
                 .small()
                 .color(palette.secondary_text),
         );
@@ -626,30 +631,30 @@ fn render_account_row(
                                             app.open_token_dialog();
                                         }
 
-                                        ui.menu_button("▶ Actions", |ui| {
-                                            if ui.button("Edit").clicked() {
+                                        ui.menu_button(format!("▶ {}", tr("Actions")), |ui| {
+                                            if ui.button(tr("Edit")).clicked() {
                                                 app.set_primary_account_selection(account.id);
                                                 app.open_edit_dialog();
                                                 ui.close_menu();
                                             }
                                             ui.separator();
-                                            if ui.button("Export to file").clicked() {
+                                            if ui.button(tr("Export to file")).clicked() {
                                                 app.set_primary_account_selection(account.id);
                                                 app.export_selected_account_to_file();
                                                 ui.close_menu();
                                             }
-                                            if ui.button("Export as URI").clicked() {
+                                            if ui.button(tr("Export as URI")).clicked() {
                                                 app.set_primary_account_selection(account.id);
                                                 app.export_selected_account_uri();
                                                 ui.close_menu();
                                             }
-                                            if ui.button("Export as QR").clicked() {
+                                            if ui.button(tr("Export as QR")).clicked() {
                                                 app.set_primary_account_selection(account.id);
                                                 app.export_selected_account_qr();
                                                 ui.close_menu();
                                             }
                                             ui.separator();
-                                            if ui.button("Delete").clicked() {
+                                            if ui.button(tr("Delete")).clicked() {
                                                 app.set_primary_account_selection(account.id);
                                                 app.open_remove_dialog();
                                                 ui.close_menu();
@@ -712,7 +717,7 @@ fn render_workspace_node(
                     !app.has_background_vault_work(),
                     egui::Button::new("🗑").min_size(egui::vec2(24.0, 24.0)),
                 )
-                .on_hover_text("Delete empty workspace")
+                .on_hover_text(tr("Delete empty workspace"))
                 .clicked()
         {
             app.open_remove_directory_dialog(directory.path.clone());
@@ -731,7 +736,7 @@ fn workspace_value(account: &AccountPublic, selected_directory_path: Option<&str
 
     if let Some(selected_directory_path) = selected_directory_path {
         if project_path == selected_directory_path {
-            return "Current root".to_owned();
+            return tr("Current root");
         }
 
         if let Some(relative) = project_path.strip_prefix(selected_directory_path) {

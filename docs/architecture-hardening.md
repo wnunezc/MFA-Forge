@@ -56,6 +56,22 @@ Si se implementa más adelante, debe ser:
 - sin background stealth
 - sin auto-actualización opaca ni cadenas de procesos ocultos
 
+## Aclaracion crítica posterior
+
+La existencia de `mfa-forge-launcher.exe` no equivale a tener updater operativo dentro del producto instalado.
+
+Desde el 2026-05-07 queda fijada esta regla:
+
+- no se puede afirmar soporte de update real si la MSI no instala el launcher cuando ese flujo depende de él
+- no se puede afirmar auto-update por apertura de GUI si no existe lógica explícita y verificada de startup update
+- esta brecha debía haberse detectado y resuelto desde la implementación inicial del launcher; se trata como fallo crítico de packaging/release, no como detalle documental
+
+En la línea `RC20`:
+
+- la MSI vuelve a incluir `mfa-forge-launcher.exe`
+- la GUI expone un trigger explícito para delegar el siguiente RC al launcher instalado
+- la ruta exacta `RC19 -> RC20` sigue siendo una actualización manual por MSI, porque la RC19 instalada no contenía launcher
+
 ## Mitigaciones estructurales para AV
 
 - menos binarios auxiliares

@@ -39,6 +39,7 @@ secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
+winit = "0.30"
 zeroize.workspace = true
 
 [dev-dependencies]
