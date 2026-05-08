@@ -39,22 +39,14 @@ Razón:
 
 ## Launcher y updater
 
-No se implementa updater en RC15.
+La decisión original en `RC15` fue diferir el updater hasta endurecer packaging y validación. La línea actual ya implementa una versión acotada del updater y su frontera queda fijada así:
 
-La decisión actual es diferirlo hasta tener:
-
-- firma Authenticode consistente
-- manifiesto de release firmado
-- validación de hash por artefacto
-- estrategia de rollback
-- criterio claro de reputación AV/SmartScreen
-
-Si se implementa más adelante, debe ser:
-
-- binario separado
-- sin acceso al vault ni a secretos
-- sin background stealth
-- sin auto-actualización opaca ni cadenas de procesos ocultos
+- `mfa-forge-launcher.exe` sigue siendo binario separado
+- no toca vault ni secretos
+- solo descubre releases públicas, valida checksum y delega a `msiexec`
+- el trigger puede venir del arranque de la GUI, pero el trabajo sensible sigue fuera de la app principal
+- el helper oculto actual existe solo para copiar el launcher fuera del directorio instalado, cerrar la GUI y permitir que la MSI reemplace los binarios en uso
+- no existe daemon residente, servicio de fondo ni scheduler persistente
 
 ## Aclaracion crítica posterior
 
@@ -76,6 +68,7 @@ En la línea `RC21` y posteriores:
 
 - la lógica de startup update ya existe dentro de la GUI instalada
 - el launcher descubre la prerelease RC más nueva publicada, valida checksum y delega a MSI
+- desde `RC25 -> RC26` ya existe una validación literal cerrada con apertura de GUI antes del unlock, helper temporal, checksum público verificado y `msiexec /passive` con `exit code 0`
 - cada edge exacto instalado sigue requiriendo validación explícita; no basta con asumir que la mecánica general existe
 
 ## Mitigaciones estructurales para AV

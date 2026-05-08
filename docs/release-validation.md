@@ -60,7 +60,7 @@ This checklist must pass before any RC publication decision:
 - the product exposes a real and user-visible way to trigger the approved future update path; opening the GUI does not count unless startup update logic is explicitly implemented and verified
 - launcher can discover the intended current-candidate GitHub prerelease metadata and asset names
 - launcher downloads the current-candidate MSI and validates its SHA256 against the published checksum
-- launcher hands control to the MSI update flow without stealth or background behavior
+- launcher hands control to the MSI update flow in a documented way; if a temporary helper copy is required to free in-use binaries, that helper path must be explicit in the evidence
 - MSI upgrade replaces the installed previous-RC binaries with the current candidate while preserving the per-user install boundary
 - post-update smoke validates GUI, `mfa-forge-agent`, `mfa-forge-mcp`, the grant prompts, language/font rendering, and the password-rotation prompt
 - evidence records exact tag, asset names, checksum, commands run, manual findings, and any skipped checks
@@ -76,6 +76,16 @@ From this point forward:
 - no RC may be described as self-updating unless that behavior exists in the installed product and is validated on the installed baseline
 - no launcher-driven update claim is acceptable unless the launcher binary is included in the MSI and the trigger path is exercised on a real installed RC
 - missing launcher packaging or missing update trigger path blocks release publication just like a broken MSI or a failing smoke
+
+## Current closed proof
+
+The first literal installed proof for automatic startup update is:
+
+- baseline installed locally: `RC25` / `0.1.25`
+- published target: `RC26` / `0.1.26`
+- trigger: open `mfa-forge-gui.exe` before unlock
+- observed path: GUI startup -> launcher -> helper copy -> published checksum verification -> `msiexec /passive`
+- result: installed `gui`, `agent`, `mcp`, and `launcher` all became `0.1.26`
 
 ## Evidence to record
 
