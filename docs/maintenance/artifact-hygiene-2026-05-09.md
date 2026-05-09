@@ -67,3 +67,11 @@ Se eliminan despues del checkpoint:
 ### Delta
 
 - reduccion aproximada: `15146.18 MB`
+
+## Validacion final post-saneamiento
+
+- `cargo fmt --all -- --check` -> OK
+- `cargo check --workspace --target-dir D:\OpsZone\DevWorkspace\tmp-rust-checks\mfa-forge-final-suite-3` -> OK
+- `cargo clippy --workspace --all-targets --target-dir D:\OpsZone\DevWorkspace\tmp-rust-checks\mfa-forge-final-suite-3 -- -D warnings` -> OK
+- `cargo test --workspace --target-dir D:\OpsZone\DevWorkspace\tmp-rust-checks\mfa-forge-final-suite-3` -> OK
+- observacion operativa: durante tests puede levantarse temporalmente un binario `mfa-forge-gui-<hash>.exe`; al cierre de esta corrida no quedo proceso residente
