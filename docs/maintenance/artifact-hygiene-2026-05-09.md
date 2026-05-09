@@ -49,4 +49,21 @@ Se eliminan despues del checkpoint:
 
 ## Checkpoint post-limpieza
 
-Pendiente de completar tras la purga efectiva.
+### Resultado
+
+- `target/` despues de la purga: `40.40 MB`
+- artefactos retenidos fisicamente:
+  - `target/rc/MFA-Forge-1.0.0-x64.msi`
+  - `target/rc/published-1.0.0/MFA-Forge-1.0.0-x64.msi.sha256.txt`
+  - `target/release/mfa-forge.exe`
+  - `target/release/mfa-forge-gui.exe`
+  - `target/release/mfa-forge-agent.exe`
+  - `target/release/mfa-forge-mcp.exe`
+  - `target/release/mfa-forge-launcher.exe`
+  - `target/smoke-rc26/*`
+  - set reducido de `target/smoke-language/`
+  - set reducido de `target/smoke-grants/`
+
+### Delta
+
+- reduccion aproximada: `15146.18 MB`
