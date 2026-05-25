@@ -62,7 +62,7 @@
         Id='*'
         Name='MFA-Forge'
         UpgradeCode='622B6FF8-32E4-4580-96A7-45FC61EC7C64'
-        Manufacturer='OpsZone'
+        Manufacturer='wnunezc'
         Language='1033'
         Codepage='1252'
         Version='$(var.Version)'>
@@ -70,7 +70,7 @@
         <Package Id='*'
             Keywords='Installer'
             Description='Desktop local-first MFA authenticator with encrypted vault.'
-            Manufacturer='OpsZone'
+            Manufacturer='wnunezc'
             InstallerVersion='450'
             Languages='1033'
             Compressed='yes'
@@ -92,7 +92,7 @@
                         <Component Id='binary0' Guid='3DCF970B-5C4F-4036-B630-F8B989911BD7'>
                             <RegistryValue
                                 Root='HKCU'
-                                Key='Software\OpsZone\MFA-Forge'
+                                Key='Software\wnunezc\MFA-Forge'
                                 Name='installed'
                                 Type='integer'
                                 Value='1'
@@ -123,7 +123,7 @@
                         <Component Id='binary1' Guid='B5B1F89D-5B0A-4B51-95D0-CDE2960D8F92'>
                             <RegistryValue
                                 Root='HKCU'
-                                Key='Software\OpsZone\MFA-Forge'
+                                Key='Software\wnunezc\MFA-Forge'
                                 Name='agent_installed'
                                 Type='integer'
                                 Value='1'
@@ -142,7 +142,7 @@
                         <Component Id='binary2' Guid='6C2AE3C9-D0EB-420D-B243-9AA06E74FB95'>
                             <RegistryValue
                                 Root='HKCU'
-                                Key='Software\OpsZone\MFA-Forge'
+                                Key='Software\wnunezc\MFA-Forge'
                                 Name='cli_installed'
                                 Type='integer'
                                 Value='1'
@@ -161,7 +161,7 @@
                         <Component Id='binary3' Guid='C7B81514-75C5-42E5-9FD2-BD4BE7557F96'>
                             <RegistryValue
                                 Root='HKCU'
-                                Key='Software\OpsZone\MFA-Forge'
+                                Key='Software\wnunezc\MFA-Forge'
                                 Name='mcp_installed'
                                 Type='integer'
                                 Value='1'
@@ -180,7 +180,7 @@
                         <Component Id='binary4' Guid='8AF68D48-7FBA-4A1D-8F0C-83C2D6A3E4B1'>
                             <RegistryValue
                                 Root='HKCU'
-                                Key='Software\OpsZone\MFA-Forge'
+                                Key='Software\wnunezc\MFA-Forge'
                                 Name='launcher_installed'
                                 Type='integer'
                                 Value='1'
@@ -237,7 +237,8 @@
           2. Change the value for `Value` attribute of the following
              `Property` tag to a valid URL.
         -->
-        <!--<Property Id='ARPHELPLINK' Value='ChangeMe'/>-->
+        <Property Id='ARPHELPLINK' Value='https://github.com/wnunezc/MFA-Forge'/>
+        <Property Id='ARPURLINFOABOUT' Value='https://github.com/wnunezc/MFA-Forge'/>
 
         <UI>
             <UIRef Id='WixUI_FeatureTree'/>

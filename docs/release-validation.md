@@ -51,6 +51,7 @@ For any locally installed candidate:
 - MSI filename matches the intended asset name
 - if release/update support is claimed, the installed MSI must include every binary required for that path, especially `mfa-forge-launcher.exe`
 - GUI unlock path still works on Windows
+- GUI opens on a clean Windows host with an OpenGL 2.0-compatible driver stack
 - token-grant prompt opens, approves once, and closes without freezing the UI
 - provisioning-grant prompt approves and denies cleanly
 - `mfa-forge-agent` opens, unlocks, and closes cleanly
@@ -103,6 +104,7 @@ Record these items in the release notes:
 - exact MSI path and checksum
 - tag name and release URL when publication is performed
 - validation commands run
+- dependency evidence for the shipped GUI binary (`dumpbin /DEPENDENTS`) so `VCRUNTIME140.dll` and `OPENGL32.dll` assumptions stay explicit
 - manual smoke results
 - update-path findings for the exact installed edge that matters
 - anything intentionally skipped and why
