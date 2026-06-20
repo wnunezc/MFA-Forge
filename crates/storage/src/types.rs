@@ -32,12 +32,12 @@ impl KdfParameters {
     pub fn generated() -> Self {
         #[cfg(any(test, feature = "fast-test-kdf"))]
         {
-            return Self {
+            Self {
                 salt: SaltString::generate(&mut OsRng).to_string(),
                 memory_cost_kib: 1_024,
                 iterations: 1,
                 parallelism: 1,
-            };
+            }
         }
 
         #[cfg(not(any(test, feature = "fast-test-kdf")))]
