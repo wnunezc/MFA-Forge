@@ -15,16 +15,16 @@ UpgradeBehavior: uninstallPrevious
 Dependencies:
   PackageDependencies:
     - PackageIdentifier: Microsoft.VCRedist.2015+.x64
-ReleaseDate: 2026-06-19
+ReleaseDate: 2026-06-20
 Installers:
   - Architecture: x64
     InstallerUrl: https://github.com/wnunezc/MFA-Forge/releases/download/v1.0.2/MFA-Forge-1.0.2-x64.msi
-    InstallerSha256: 534D90478D4638C87CC2CE2F7FA538B1A79F44DBDFF56CAD8335A336AC58F400
-    ProductCode: '{F9CE521E-E9D1-41DA-9563-8A15B94AF94C}'
+    InstallerSha256: EF5E0F7549CA0F4507691B8E2ED47FE47E153DA3887AC7AB55D59A0926140A27
+    ProductCode: '{8106F506-9C9F-4555-9FE3-65FDFF7FD08D}'
     AppsAndFeaturesEntries:
       - DisplayName: MFA-Forge
         Publisher: wnunezc
-        ProductCode: '{F9CE521E-E9D1-41DA-9563-8A15B94AF94C}'
+        ProductCode: '{8106F506-9C9F-4555-9FE3-65FDFF7FD08D}'
         UpgradeCode: '{622B6FF8-32E4-4580-96A7-45FC61EC7C64}'
 InstallationMetadata:
   DefaultInstallLocation: '%LocalAppData%\\MFA-Forge'
