@@ -154,7 +154,9 @@ Features:
 - [x] process-scoped local session over `stdio`
 - [x] temporary native unlock for local automation
 - [x] metadata operations and TOTP generation over a machine-readable channel
+- [x] long-running local automation hardening with dedicated `stdin` reader, Win32 message pumping, bounded native waits, EOF shutdown, and recoverable child-process health checks
 - [x] bounded local audit trail for sensitive automation operations
+- [x] storage-owned preferences and audit-log JSONL persistence with GUI-owned redaction semantics
 - [x] public history review and recent audit-log review behind explicit approval
 - [x] password rotation through agent and MCP with a dedicated native prompt
 - [ ] local loopback API
@@ -192,6 +194,7 @@ Candidate MCP operations:
 - [x] `health`
 - [x] `open_session`
 - [x] `session_info`
+- [x] process, instance, session and startup identity in `health` / `session_info`
 - [x] `list_accounts_metadata`
 - [x] `get_account_metadata`
 - [x] `generate_totp_token`

@@ -4,8 +4,11 @@ MFA-Forge is a secure MFA token manager written in Rust. The current release lin
 
 ## Release status
 
-- publishable hotfix candidate: `1.0.2`, pending the one-hour Windows lifecycle soak and explicit publication approval
+- publishable hotfix candidate: `1.0.2`, pending explicit publication approval
 - `1.0.2` fixes persistent agent/MCP lifecycle handling and prepares an upgrade from `1.0.1`
+- current stable release: `1.0.1`, published at `https://github.com/wnunezc/MFA-Forge/releases/tag/v1.0.1`
+- current winget package: `wnunezc.MFA-Forge 1.0.1`
+- install with `winget install --id wnunezc.MFA-Forge --exact`
 - current stable candidate follows the workspace version in `Cargo.toml`
 - stable MSI artifacts follow `target/rc/MFA-Forge-<version>-x64.msi`
 - the exact upgrade path from the installed previous release line to the current candidate must be recorded alongside publication evidence
@@ -15,6 +18,7 @@ MFA-Forge is a secure MFA token manager written in Rust. The current release lin
 
 ## Repository guide
 
+- harness/context router: `docs/harness-context-map.md`
 - implemented surface: this `README.md`
 - roadmap and pending work: `ROADMAP.md`
 - feature inventory and product direction: `FEATURE_MAP.md`
@@ -34,10 +38,13 @@ Implemented now:
 - Windows desktop GUI for unlock, workspace navigation, account management, import flows, token display, history restore, export, theme persistence, language persistence, and localized help
 - dedicated `mfa-forge-agent` binary for process-scoped local automation
 - dedicated `mfa-forge-mcp` binary for MCP clients over JSON-RPC `stdio`
-- dedicated `mfa-forge-launcher` binary for release discovery, checksum verification, and MSI handoff, installed by the MSI from `RC20` onward and triggered on GUI open from the `RC21` line onward; the validated automatic installed edge is `RC25 -> RC26`, which is the baseline updater proof promoted into `1.0.0`
+- dedicated `mfa-forge-launcher` binary for release discovery, checksum verification, and MSI handoff, installed by the MSI from `RC20` onward and triggered on GUI open from the `RC21` line onward; the validated automatic installed edge is `RC25 -> RC26`, which is the baseline updater proof promoted into `1.0.0` and retained in `1.0.1`
 - explicit short-lived grants for token delivery, account provisioning, and audit reporting
 - local JSONL audit trail without raw secrets, TOTP values, or `otpauth://` URIs
 - recent audit-log review with bounded tail reads and local compaction
+- persistent agent/MCP lifecycle hardening with process/session identity, EOF shutdown, Win32 message pumping, bounded native prompts, and broker recovery
+- storage-owned app-data preferences and audit-log persistence used by the GUI
+- Windows mixed-DPI drag/window-state stabilization through a documented temporary `winit 0.30.13` patch
 - `otpauth://` import in CLI and GUI
 - local QR import for `otpauth://` in the GUI
 - vault schema migration with automatic `v1/v2 -> v3` persistence on unlock

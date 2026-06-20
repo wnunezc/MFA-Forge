@@ -42,6 +42,7 @@ This roadmap tracks product direction at a high level. `README.md` remains the b
 
 - [x] native unlock window for local automation access
 - [x] process-scoped session over JSON `stdio`
+- [x] persistent agent/MCP lifecycle hardening with EOF shutdown, Win32 message pumping, bounded native waits, session identity, and broker recovery
 - [x] machine-readable account and token operations
 - [x] explicit short-lived grants for sensitive operations
 - [x] password rotation inside the local automation boundary
@@ -72,6 +73,8 @@ This roadmap tracks product direction at a high level. `README.md` remains the b
 - [x] minimal MCP server over JSON-RPC `stdio`
 - [x] local audit trail for sensitive automation actions
 - [x] validated local `RC17 -> RC18` upgrade path
+- [x] validated startup-updater proof on `RC25 -> RC26`
+- [x] stable public release publication
+- [x] hotfix `1.0.2` issue closure for lifecycle, audit/storage boundaries, module split, test KDF isolation, and mixed-DPI window behavior
 - [ ] broader client-scoped deny-by-default policy model
 - [ ] deeper audit and reporting workflows
-- [ ] stable public release publication

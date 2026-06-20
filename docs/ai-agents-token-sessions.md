@@ -38,6 +38,21 @@ El comando `mfa-forge mcp` hace proxy a `mfa-forge-mcp.exe`.
 - Ninguna de las dos superficies exporta secretos raw.
 - `rotate_master_password` siempre abre un prompt nativo y nunca recibe la nueva password por `stdio` o MCP.
 
+## 2.1 Regla del engine del workspace
+
+El engine compartido del workspace en `D:/OpsZone/DevWorkspace/Engines/MFA-Forge/index.cjs` ya no debe tratar la lectura repetida de TOTP como si cada token necesitara reabrir o reaprobar el flujo MCP.
+
+Contrato operativo actual del engine:
+
+- `status`, `open-session`, `list-accounts` y `read-token` usan una sesion persistente sobre `mfa-forge-agent`
+- `mcp-status`, `mcp-open-session`, `grant-token` y `grant-provisioning` quedan para el camino MCP estricto
+- si una automatizacion necesita varios TOTP en la misma corriente de trabajo, debe reutilizar la sesion `agent` del engine en vez de encadenar `grant_generate_token` por cada lectura
+
+Razon:
+
+- `mfa-forge-mcp` mantiene el boundary de aprobacion estricta con grants de un solo uso y TTL corto
+- `mfa-forge-agent` es la superficie correcta cuando el objetivo es una sesion local persistente para trabajo repetido sin volver a pedir aprobacion por cada token
+
 ## 3. `mfa-forge-agent` - protocolo local simple por `stdio`
 
 ### 3.1 Arranque y eventos iniciales
@@ -54,10 +69,12 @@ Al arrancar, el proceso escribe primero un evento de espera y abre la ventana na
 {"event":"unlock_prompt_opened","status":"waiting_user_action","protocol":"mfa-forge-agent/v1","message":"MFA-Forge abrio una ventana nativa temporal para solicitar la contrasena del vault."}
 ```
 
-Si el unlock sale bien, responde con:
+Si el unlock sale bien, responde con `session_ready`. Desde `1.0.2` este evento
+tambien expone identidad estable del proceso, la instancia y la sesion para que
+un cliente pueda detectar reinicios o reutilizacion accidental:
 
 ```json
-{"event":"session_ready","status":"access_granted","protocol":"mfa-forge-agent/v1","vault_path":"...","capabilities":["ping","session_info","list_accounts","history","generate_token","add_account","import_otpauth","update_account","remove_account","export_metadata","rotate_master_password","close_session"],"windows_reinforced_unlock":"in_review","message":"La sesion queda abierta mientras este proceso siga vivo o hasta recibir close_session."}
+{"event":"session_ready","status":"access_granted","protocol":"mfa-forge-agent/v1","vault_path":"...","process_id":1234,"instance_id":"...","session_id":"...","started_at_epoch_ms":1778191556045,"capabilities":["ping","session_info","list_accounts","history","generate_token","add_account","import_otpauth","update_account","remove_account","export_metadata","rotate_master_password","close_session"],"windows_reinforced_unlock":"in_review","message":"La sesion queda abierta mientras este proceso siga vivo o hasta recibir close_session."}
 ```
 
 Si el unlock falla o el usuario cancela:
@@ -144,8 +161,9 @@ Salida relevante del token:
 
 - La sesion queda abierta mientras el proceso siga vivo.
 - Si `stdin` recibe EOF, la sesion se cierra.
+- La lectura de `stdin` corre en un thread dedicado; el thread principal sigue bombeando mensajes Win32 para que unlock, grants y prompts nativos no congelen la UI.
 - Si llamas `close_session`, la sesion se bloquea y el proceso pide salir.
-- `session_info` sirve para confirmar `vault_path`, `account_count` y que el estado siga en `access_granted`.
+- `session_info` sirve para confirmar `vault_path`, `account_count`, `process_id`, `instance_id`, `session_id`, `started_at_epoch_ms` y que el estado siga en `access_granted`.
 
 ## 4. `mfa-forge-mcp` - servidor MCP local por `stdio`
 
@@ -284,10 +302,22 @@ Respuesta tipica del token MCP:
 
 - El proceso MCP arranca bloqueado.
 - `open_session` desbloquea la sesion para ese proceso.
-- `session_info` te dice si la sesion esta `locked` o `access_granted`.
+- `session_info` te dice si la sesion esta `locked` o `access_granted`, y desde `1.0.2` tambien expone identidad de proceso/instancia/sesion.
 - `close_session` vuelve a bloquear la sesion, pero no necesariamente mata el proceso.
 - Si el proceso termina o `stdin` recibe EOF, MFA-Forge cierra la sesion local.
-- `health` es util incluso antes del unlock para revisar `vault_initialized`, `session_open` y si los grants son obligatorios.
+- `health` es util incluso antes del unlock para revisar `vault_initialized`, `session_open`, `process_id`, `instance_id`, `started_at_epoch_ms` y si los grants son obligatorios.
+
+## 4.6 Runtime persistente y recuperacion
+
+El engine persistente del workspace debe tratar `process_id`, `instance_id` y
+`session_id` como identidad de salud, no como datos sensibles. Si el broker
+sigue vivo pero el hijo `agent` o `mcp` muere, queda bloqueado o deja de
+responder, el engine debe:
+
+1. rechazar requests pendientes;
+2. limpiar estado invalido;
+3. iniciar una nueva sesion solo mediante unlock visible;
+4. no reutilizar grants ni tokens de una sesion anterior.
 
 ## 5. Diferencias importantes entre agent y MCP
 

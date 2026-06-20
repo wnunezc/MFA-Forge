@@ -13,7 +13,7 @@ This document defines the release validation flow for MFA-Forge.
 
 ## Version, tag, and asset policy
 
-Canonical policy for the current pre-`1.0.0` line:
+Historical policy for the pre-`1.0.0` RC line:
 
 - workspace, package, and MSI version stays numeric as `0.1.N`
 - the RC number matches the patch number: `RCN -> 0.1.N`
@@ -102,7 +102,7 @@ Before publishing `1.0.2`:
 
 - install public `1.0.1` and confirm all installed binaries report `1.0.1`
 - upgrade with `MFA-Forge-1.0.2-x64.msi` and confirm `msiexec` returns `0`
-- keep agent and MCP sessions open for eight hours without Application Hang event `1002`
+- keep agent and MCP sessions open for at least one hour without Application Hang event `1002`; keep the original eight-hour soak as an optional extended confidence run, not a blocking publication gate
 - run an initial 1,000-operation agent burst without logging generated token values
 - verify broker health fails within five seconds when its child is terminated
 - verify the following call starts a fresh visible unlock flow

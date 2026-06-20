@@ -1,6 +1,6 @@
 # Architecture Hardening Notes
 
-Este documento fija la frontera arquitectónica y de release después del refactor de RC15.
+Este documento fija la frontera arquitectónica y de release después del refactor de RC15 y la hotfix `1.0.2`.
 
 ## Objetivo
 
@@ -10,7 +10,7 @@ Este documento fija la frontera arquitectónica y de release después del refact
 - mantener `platform-windows` como frontera única para Win32/WinRT
 - impedir que `gui`, `agent` y `mcp` vuelvan a capturar lógica sensible
 
-## Superficie de binarios aprobada en RC15
+## Superficie de binarios aprobada
 
 Se mantiene esta superficie distribuible:
 
@@ -18,6 +18,7 @@ Se mantiene esta superficie distribuible:
 - `mfa-forge-gui.exe`: shell visual desktop
 - `mfa-forge-agent.exe`: sesión local por proceso sobre `stdio`
 - `mfa-forge-mcp.exe`: servidor MCP local sobre `stdio`
+- `mfa-forge-launcher.exe`: descubrimiento de release, verificacion de checksum y handoff MSI, sin acceso al vault
 
 Se elimina de la distribución:
 
@@ -36,6 +37,18 @@ Razón:
 - `platform-windows` es el único crate autorizado a depender de APIs Win32/WinRT
 - `gui` y la automatización local consumen flujos compartidos de `application`
 - ningún flujo sensible nuevo debe nacer en `gui/src/app.rs`, `agent/stdio.rs` o `agent/mcp.rs`
+- `storage` es dueño de rutas de app-data, preferencias y persistencia JSONL de auditoria; `gui` conserva politica de redaccion y significado de eventos, no IO directo
+
+## Runtime local de automatizacion
+
+La hotfix `1.0.2` fija un runtime compartido para `mfa-forge-agent` y `mfa-forge-mcp`:
+
+- lectura de `stdin` en thread dedicado
+- bombeo periodico de mensajes Win32 durante espera o inactividad
+- cierre seguro ante EOF, error de lectura o `close_session`
+- timeouts/cancelacion para unlock, Windows Hello, grants y rotacion
+- identidad estable de proceso/instancia/sesion expuesta por `session_ready`, `session_info` y `health`
+- broker persistente del workspace con deteccion de hijo muerto o bloqueado, rechazo de requests pendientes y nuevo unlock visible al recuperar sesion
 
 ## Launcher y updater
 
@@ -80,13 +93,21 @@ En la línea `RC21` y posteriores:
 - separación explícita de plataforma Windows
 - instalación MSI con inventario estable de binarios
 
+## Parche temporal de ventana Windows
+
+La hotfix `1.0.2` usa `[patch.crates-io]` para resolver `winit` desde
+`vendor/winit-0.30.13-dpi-drag`. Esta copia parte de `winit 0.30.13` oficial y
+contiene un cambio acotado para evitar parpadeo y crecimiento descontrolado al
+arrastrar la ventana entre monitores con escalas DPI mixtas. Es una excepcion
+temporal: debe volver a la version oficial de crates.io cuando upstream publique
+el fix equivalente.
+
 ## Deuda congelada
 
 Hasta validar esta base no se debe abrir:
 
 - loopback API
 - nuevas superficies MCP
-- updater real
 - nuevas features MFA avanzadas
 - mutaciones MCP adicionales fuera del set ya aprobado (`create_account`, `import_otpauth`, `update_account`, `remove_account`, `rotate_master_password`)
 - grants o lecturas sensibles fuera del set ya aprobado (`grant_generate_token`, `grant_account_provisioning`, `grant_audit_reporting`, `list_history`, `read_audit_events`, `summarize_audit_events`, `export_metadata`)
