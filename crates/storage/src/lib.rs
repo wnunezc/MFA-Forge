@@ -1,5 +1,8 @@
+pub mod app_data;
+pub mod audit_log;
 mod crypto;
 mod error;
+pub mod preferences;
 mod repository;
 mod types;
 

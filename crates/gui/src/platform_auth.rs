@@ -23,9 +23,8 @@ pub fn save_main_window(owner_window: OwnerWindow) -> Result<(), String> {
 }
 
 fn main_window_state_path() -> PathBuf {
-    directories::ProjectDirs::from("dev", "OpsZone", "MFA-Forge")
-        .map(|dirs| dirs.data_local_dir().join("main-window.json"))
-        .unwrap_or_else(|| PathBuf::from("main-window.json"))
+    mfa_forge_storage::app_data::data_local_file("main-window.json")
+        .unwrap_or_else(|_| PathBuf::from("main-window.json"))
 }
 
 pub fn begin_verify_unlock(owner_window: OwnerWindow) -> Result<PendingVerification, String> {

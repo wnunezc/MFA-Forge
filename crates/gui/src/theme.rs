@@ -1,6 +1,5 @@
-use std::{fs, path::PathBuf};
+use std::fs;
 
-use directories::ProjectDirs;
 use eframe::egui::{self, Color32, FontFamily, FontId, Stroke, TextStyle, Visuals};
 use serde::{Deserialize, Serialize};
 
@@ -48,7 +47,7 @@ pub struct ThemePalette {
     pub token_text: Color32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 struct StoredGuiPreferences {
     #[serde(default)]
     theme: ThemePreference,
@@ -56,7 +55,7 @@ struct StoredGuiPreferences {
     language: Language,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct GuiPreferences {
     pub theme: ThemePreference,
     pub language: Language,
@@ -126,28 +125,14 @@ pub fn load_language_preference() -> Language {
 
 pub fn load_preferences() -> GuiPreferences {
     let Ok(path) = theme_preference_path() else {
-        return GuiPreferences {
-            theme: ThemePreference::default(),
-            language: Language::default(),
-        };
+        return GuiPreferences::default();
     };
 
-    let Ok(bytes) = fs::read(path) else {
-        return GuiPreferences {
-            theme: ThemePreference::default(),
-            language: Language::default(),
-        };
-    };
-
-    serde_json::from_slice::<StoredGuiPreferences>(&bytes)
-        .map(|stored| GuiPreferences {
-            theme: stored.theme,
-            language: stored.language,
-        })
-        .unwrap_or(GuiPreferences {
-            theme: ThemePreference::default(),
-            language: Language::default(),
-        })
+    let stored: StoredGuiPreferences = mfa_forge_storage::preferences::load_or_default(&path);
+    GuiPreferences {
+        theme: stored.theme,
+        language: stored.language,
+    }
 }
 
 /// Guarda inmediatamente la preferencia de tema para restaurarla al reiniciar.
@@ -165,21 +150,13 @@ pub fn save_language_preference(language: Language) -> Result<(), String> {
 
 fn save_preferences(preferences: GuiPreferences) -> Result<(), String> {
     let path = theme_preference_path()?;
-
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|error| {
-            format!("The GUI preferences directory could not be created: {error}")
-        })?;
-    }
-
-    let payload = serde_json::to_vec_pretty(&StoredGuiPreferences {
-        theme: preferences.theme,
-        language: preferences.language,
-    })
-    .map_err(|error| format!("The GUI preferences could not be serialized: {error}"))?;
-
-    fs::write(path, payload)
-        .map_err(|error| format!("The GUI preferences could not be saved: {error}"))
+    mfa_forge_storage::preferences::save(
+        &path,
+        &StoredGuiPreferences {
+            theme: preferences.theme,
+            language: preferences.language,
+        },
+    )
 }
 
 /// Expone la paleta semántica usada por la UI.
@@ -264,10 +241,8 @@ fn insert_if_present(fonts: &mut egui::FontDefinitions, family: FontFamily, name
     }
 }
 
-fn theme_preference_path() -> Result<PathBuf, String> {
-    let project_dirs = ProjectDirs::from("dev", "OpsZone", "MFA-Forge")
-        .ok_or_else(|| "The MFA-Forge local data directory could not be resolved.".to_owned())?;
-    Ok(project_dirs.data_local_dir().join(THEME_PREFERENCES_FILE))
+fn theme_preference_path() -> Result<std::path::PathBuf, String> {
+    mfa_forge_storage::app_data::data_local_file(THEME_PREFERENCES_FILE)
 }
 
 fn visuals(preference: ThemePreference) -> Visuals {
