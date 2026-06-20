@@ -1,4 +1,4 @@
-use std::io::{self, BufRead};
+use std::{io, time::Duration};
 
 use serde_json::{Value, json};
 
@@ -6,6 +6,7 @@ mod session_host;
 mod tools;
 mod transport;
 
+use super::stdio_runtime::{InputEvent, next_input_event, spawn_input_reader};
 use session_host::{SERVER_NAME, SessionHost};
 use tools::{
     AccountIdArgs, AuditEventArgs, CallToolResult, CreateAccountArgs, GenerateTokenArgs,
@@ -22,24 +23,30 @@ use transport::{
 pub fn run_mcp_server() -> Result<(), String> {
     crate::runtime::ensure_supported_runtime("El servidor local mfa-forge-mcp")?;
 
-    let stdin = io::stdin();
     let stdout = io::stdout();
-    let mut reader = io::BufReader::new(stdin.lock());
     let mut writer = stdout.lock();
     let mut server = McpServer::bootstrap()?;
-    let mut line = String::new();
+    let input = spawn_input_reader(io::BufReader::new(io::stdin()));
 
     loop {
-        line.clear();
-
-        let bytes_read = reader
-            .read_line(&mut line)
-            .map_err(|error| format!("No se pudo leer stdin: {error}"))?;
-
-        if bytes_read == 0 {
-            server.close_session();
-            break;
-        }
+        let line = match next_input_event(&input, Duration::from_millis(50), || {
+            mfa_forge_platform_windows::pump_pending_messages();
+        }) {
+            Ok(InputEvent::Line(line)) => line,
+            Ok(InputEvent::Eof) => {
+                crate::diagnostics::log_event("mcp", "stdin_eof", json!({}));
+                server.close_session();
+                break;
+            }
+            Ok(InputEvent::ReadError(error)) => {
+                server.close_session();
+                return Err(format!("No se pudo leer stdin: {error}"));
+            }
+            Err(error) => {
+                server.close_session();
+                return Err(error);
+            }
+        };
 
         let trimmed = line.trim();
         if trimmed.is_empty() {
@@ -485,6 +492,7 @@ mod tests {
             server: McpServer {
                 lifecycle: LifecycleState::Ready,
                 host: SessionHost {
+                    identity: crate::agent::stdio_runtime::ProcessIdentity::new(),
                     vault_path: vault.path_display().to_owned(),
                     audit_log_path: audit_path.display().to_string(),
                     vault_initialized: true,
@@ -516,6 +524,29 @@ mod tests {
             .session
             .list_accounts()[0]
             .id
+    }
+
+    #[test]
+    fn health_and_session_info_expose_process_and_session_identity() {
+        let mut fixture = unlocked_server();
+
+        let health = fixture.server.host.health_value();
+        let session_info = fixture.server.host.session_info_value();
+
+        assert_eq!(health["process_id"], std::process::id());
+        assert!(
+            health["instance_id"]
+                .as_str()
+                .is_some_and(|value| !value.is_empty())
+        );
+        assert!(health["started_at_epoch_ms"].as_u64().is_some());
+        assert_eq!(session_info["process_id"], health["process_id"]);
+        assert_eq!(session_info["instance_id"], health["instance_id"]);
+        assert!(
+            session_info["session_id"]
+                .as_str()
+                .is_some_and(|value| !value.is_empty())
+        );
     }
 
     #[test]

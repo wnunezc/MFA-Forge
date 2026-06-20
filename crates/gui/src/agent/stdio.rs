@@ -1,4 +1,7 @@
-use std::io::{self, BufRead, Write};
+use std::{
+    io::{self, Write},
+    time::Duration,
+};
 
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -11,8 +14,11 @@ use super::{
         AgentCommand, AgentErrorResponse, AgentRequest, AgentSuccessResponse, PROTOCOL_VERSION,
     },
     session::AgentSession,
+    stdio_runtime::{InputEvent, ProcessIdentity, next_input_event, spawn_input_reader},
     unlock, wire,
 };
+
+const INPUT_PUMP_INTERVAL: Duration = Duration::from_millis(50);
 
 const AGENT_CAPABILITIES: &[&str] = &[
     "ping",
@@ -31,6 +37,7 @@ const AGENT_CAPABILITIES: &[&str] = &[
 
 pub fn run_stdio_session() -> Result<(), String> {
     crate::runtime::ensure_supported_runtime("La sesión local mfa-forge-agent")?;
+    let identity = ProcessIdentity::new();
 
     let stdout = io::stdout();
     let mut writer = stdout.lock();
@@ -61,35 +68,47 @@ pub fn run_stdio_session() -> Result<(), String> {
         }
     };
 
+    let mut session = AgentSession::new(vault);
+    let session_id = uuid::Uuid::new_v4();
+
     write_json(
         &mut writer,
         &json!({
             "event": "session_ready",
             "status": "access_granted",
             "protocol": PROTOCOL_VERSION,
-            "vault_path": vault.path_display(),
+            "vault_path": session.path_display(),
+            "process_id": identity.process_id,
+            "instance_id": identity.instance_id,
+            "session_id": session_id,
+            "started_at_epoch_ms": identity.started_at_epoch_ms,
             "capabilities": AGENT_CAPABILITIES,
             "windows_reinforced_unlock": "in_review",
             "message": "La sesión queda abierta mientras este proceso siga vivo o hasta recibir close_session."
         }),
     )?;
 
-    let stdin = io::stdin();
-    let mut reader = io::BufReader::new(stdin.lock());
-    let mut session = AgentSession::new(vault);
-    let mut line = String::new();
+    let input = spawn_input_reader(io::BufReader::new(io::stdin()));
 
     loop {
-        line.clear();
-
-        let bytes_read = reader
-            .read_line(&mut line)
-            .map_err(|error| format!("No se pudo leer stdin: {error}"))?;
-
-        if bytes_read == 0 {
-            session.close();
-            break;
-        }
+        let line = match next_input_event(&input, INPUT_PUMP_INTERVAL, || {
+            mfa_forge_platform_windows::pump_pending_messages();
+        }) {
+            Ok(InputEvent::Line(line)) => line,
+            Ok(InputEvent::Eof) => {
+                crate::diagnostics::log_event("agent", "stdin_eof", json!({}));
+                session.close();
+                break;
+            }
+            Ok(InputEvent::ReadError(error)) => {
+                session.close();
+                return Err(format!("No se pudo leer stdin: {error}"));
+            }
+            Err(error) => {
+                session.close();
+                return Err(error);
+            }
+        };
 
         let trimmed = line.trim();
         if trimmed.is_empty() {
@@ -111,7 +130,7 @@ pub fn run_stdio_session() -> Result<(), String> {
             }
         };
 
-        match session.handle(request.command) {
+        match session.handle_with_context(request.command, identity, session_id) {
             Ok(outcome) => {
                 write_json(
                     &mut writer,
@@ -148,7 +167,12 @@ struct CommandOutcome {
 }
 
 impl AgentSession {
-    fn handle(&mut self, command: AgentCommand) -> Result<CommandOutcome, String> {
+    fn handle_with_context(
+        &mut self,
+        command: AgentCommand,
+        identity: ProcessIdentity,
+        session_id: uuid::Uuid,
+    ) -> Result<CommandOutcome, String> {
         match command {
             AgentCommand::Ping => Ok(CommandOutcome {
                 result: json!({ "status": "ok" }),
@@ -159,6 +183,10 @@ impl AgentSession {
                     "status": "access_granted",
                     "vault_path": self.path_display(),
                     "account_count": self.account_count(),
+                    "process_id": identity.process_id,
+                    "instance_id": identity.instance_id,
+                    "session_id": session_id,
+                    "started_at_epoch_ms": identity.started_at_epoch_ms,
                     "windows_reinforced_unlock": "in_review",
                 }),
                 should_close: false,
@@ -241,6 +269,11 @@ impl AgentSession {
                 })
             }
         }
+    }
+
+    #[cfg(test)]
+    fn handle(&mut self, command: AgentCommand) -> Result<CommandOutcome, String> {
+        self.handle_with_context(command, ProcessIdentity::new(), uuid::Uuid::new_v4())
     }
 
     fn rotate_master_password_with<F>(&mut self, prompt: F) -> Result<CommandOutcome, String>
@@ -360,6 +393,31 @@ mod tests {
 
         assert_eq!(outcome.result["status"], "closing");
         assert!(outcome.should_close);
+    }
+
+    #[test]
+    fn session_info_exposes_stable_process_and_session_identity() {
+        let mut fixture = session_fixture();
+        let identity = ProcessIdentity::new();
+        let session_id = Uuid::new_v4();
+
+        let first = fixture
+            .session
+            .handle_with_context(AgentCommand::SessionInfo, identity, session_id)
+            .expect("first session info should succeed");
+        let second = fixture
+            .session
+            .handle_with_context(AgentCommand::SessionInfo, identity, session_id)
+            .expect("second session info should succeed");
+
+        assert_eq!(first.result["process_id"], std::process::id());
+        assert_eq!(
+            first.result["instance_id"],
+            identity.instance_id.to_string()
+        );
+        assert_eq!(first.result["session_id"], session_id.to_string());
+        assert_eq!(first.result["instance_id"], second.result["instance_id"]);
+        assert_eq!(first.result["session_id"], second.result["session_id"]);
     }
 
     #[test]

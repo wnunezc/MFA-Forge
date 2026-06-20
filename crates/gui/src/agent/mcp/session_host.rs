@@ -26,6 +26,7 @@ use super::super::{
     },
     prompt_helper,
     session::AgentSession,
+    stdio_runtime::ProcessIdentity,
     unlock::{
         self, AuditReportingGrantPromptDecision, PasswordRotationPromptDecision,
         ProvisioningGrantPromptDecision, TokenGrantPromptDecision,
@@ -48,6 +49,7 @@ pub(super) type AuditReportingGrantPromptFn =
 pub(super) type PasswordRotationPromptFn = fn() -> Result<PasswordRotationPromptDecision, String>;
 
 pub(super) struct SessionHost {
+    pub(super) identity: ProcessIdentity,
     pub(super) vault_path: String,
     pub(super) audit_log_path: String,
     pub(super) vault_initialized: bool,
@@ -74,6 +76,7 @@ impl SessionHost {
         let audit = AuditLogger::new(default_mcp_audit_path(&PathBuf::from(vault.path_display())));
 
         Ok(Self {
+            identity: ProcessIdentity::new(),
             vault_path: vault.path_display().to_owned(),
             audit_log_path: audit.path().display().to_string(),
             vault_initialized: vault.is_initialized(),
@@ -91,6 +94,9 @@ impl SessionHost {
             "status": "ok",
             "server": SERVER_NAME,
             "version": env!("CARGO_PKG_VERSION"),
+            "process_id": self.identity.process_id,
+            "instance_id": self.identity.instance_id,
+            "started_at_epoch_ms": self.identity.started_at_epoch_ms,
             "protocol_versions": super::transport::SUPPORTED_PROTOCOL_VERSIONS,
             "vault_initialized": self.vault_initialized,
             "session_open": self.session_is_open(),
@@ -107,6 +113,10 @@ impl SessionHost {
         self.cleanup_expired_audit_reporting_grant();
         json!({
             "status": if self.session_is_open() { "access_granted" } else { "locked" },
+            "process_id": self.identity.process_id,
+            "instance_id": self.identity.instance_id,
+            "started_at_epoch_ms": self.identity.started_at_epoch_ms,
+            "session_id": self.session.as_ref().map(|session| session.id),
             "vault_path": self.vault_path,
             "audit_log_path": self.audit_log_path,
             "vault_initialized": self.vault_initialized,
@@ -128,6 +138,10 @@ impl SessionHost {
         if self.session_is_open() {
             return Ok(json!({
                 "status": "access_granted",
+                "process_id": self.identity.process_id,
+                "instance_id": self.identity.instance_id,
+                "started_at_epoch_ms": self.identity.started_at_epoch_ms,
+                "session_id": self.session.as_ref().map(|session| session.id),
                 "vault_path": self.vault_path,
                 "audit_log_path": self.audit_log_path,
                 "account_count": self.session.as_ref().map(|session| session.session.account_count()).unwrap_or(0),
@@ -177,6 +191,10 @@ impl SessionHost {
 
         Ok(json!({
             "status": "access_granted",
+            "process_id": self.identity.process_id,
+            "instance_id": self.identity.instance_id,
+            "started_at_epoch_ms": self.identity.started_at_epoch_ms,
+            "session_id": session_id,
             "vault_path": self.vault_path,
             "audit_log_path": self.audit_log_path,
             "account_count": account_count,

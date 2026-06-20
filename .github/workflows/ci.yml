@@ -35,5 +35,9 @@ jobs:
       - name: Lint workspace
         run: cargo clippy --workspace -- -D warnings
 
+      - name: Check quality guardrails
+        shell: powershell
+        run: ./scripts/check-quality-guardrails.ps1
+
       - name: Run unit tests
         run: cargo test --workspace --quiet

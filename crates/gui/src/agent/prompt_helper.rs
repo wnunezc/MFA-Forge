@@ -1,7 +1,7 @@
 use std::{
-    io::{self, Write},
-    process::{Command, Stdio},
-    thread,
+    io::{self, Read, Write},
+    process::{Child, Command, Output, Stdio},
+    time::{Duration, Instant},
 };
 
 use mfa_forge_core::AccountPublic;
@@ -14,6 +14,9 @@ use super::unlock::{
     self, AuditReportingGrantPromptDecision, PasswordRotationPromptDecision,
     ProvisioningGrantPromptDecision, TokenGrantPromptDecision,
 };
+
+const NATIVE_PROMPT_TIMEOUT: Duration = Duration::from_secs(120);
+const HELPER_POLL_INTERVAL: Duration = Duration::from_millis(25);
 
 pub fn request_generate_token_grant(
     account: &AccountPublic,
@@ -110,10 +113,7 @@ pub fn request_master_password_rotation() -> Result<PasswordRotationPromptDecisi
             "input_redacted": true,
         }),
     );
-    let decision = run_prompt_on_ui_thread(
-        "mfa-forge-password-rotation-ui",
-        unlock::run_password_rotation_window,
-    )?;
+    let decision = unlock::run_password_rotation_window()?;
 
     diagnostics::log_event(
         "prompt-helper-client",
@@ -206,9 +206,10 @@ fn request_grant_via_helper_subprocess(
         .stderr(Stdio::piped());
     apply_hidden_process_flags(&mut command);
 
-    let output = command
-        .output()
+    let child = command
+        .spawn()
         .map_err(|error| format!("No se pudo abrir el helper del prompt nativo: {error}"))?;
+    let output = wait_for_helper_output(child, NATIVE_PROMPT_TIMEOUT)?;
 
     if output.stdout.is_empty() && !output.status.success() {
         let stderr = String::from_utf8(output.stderr).unwrap_or_default();
@@ -322,6 +323,53 @@ fn apply_hidden_process_flags(command: &mut Command) {
     }
 }
 
+fn wait_for_helper_output(mut child: Child, timeout: Duration) -> Result<Output, String> {
+    let started_at = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return collect_child_output(child, status),
+            Ok(None) if started_at.elapsed() < timeout => {
+                std::thread::sleep(HELPER_POLL_INTERVAL);
+            }
+            Ok(None) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(
+                    "El prompt nativo excedió el tiempo máximo permitido y fue cerrado.".to_owned(),
+                );
+            }
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!(
+                    "No se pudo supervisar el helper del prompt nativo: {error}"
+                ));
+            }
+        }
+    }
+}
+
+fn collect_child_output(
+    mut child: Child,
+    status: std::process::ExitStatus,
+) -> Result<Output, String> {
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    if let Some(mut pipe) = child.stdout.take() {
+        pipe.read_to_end(&mut stdout)
+            .map_err(|error| format!("No se pudo leer stdout del prompt nativo: {error}"))?;
+    }
+    if let Some(mut pipe) = child.stderr.take() {
+        pipe.read_to_end(&mut stderr)
+            .map_err(|error| format!("No se pudo leer stderr del prompt nativo: {error}"))?;
+    }
+    Ok(Output {
+        status,
+        stdout,
+        stderr,
+    })
+}
+
 fn map_token_grant_decision(decision: HelperGrantDecision) -> TokenGrantPromptDecision {
     match decision {
         HelperGrantDecision::Approved => TokenGrantPromptDecision::Approved,
@@ -381,29 +429,17 @@ fn summarize_password_rotation_decision_for_trace(
     }
 }
 
-fn run_prompt_on_ui_thread<T, F>(thread_name: &str, prompt: F) -> Result<T, String>
-where
-    T: Send + 'static,
-    F: FnOnce() -> Result<T, String> + Send + 'static,
-{
-    thread::Builder::new()
-        .name(thread_name.to_owned())
-        .spawn(prompt)
-        .map_err(|error| format!("No se pudo iniciar el prompt nativo '{thread_name}': {error}"))?
-        .join()
-        .map_err(|panic| {
-            format!(
-                "El prompt nativo '{thread_name}' terminó por panic: {}",
-                diagnostics::panic_payload_message(panic)
-            )
-        })?
-}
-
 #[cfg(test)]
 mod tests {
+    #[cfg(target_os = "windows")]
+    use std::{
+        process::{Command, Stdio},
+        time::Duration,
+    };
+
     use super::{
         HelperGrantDecision, HelperResponseStatus, NativeGrantPromptRequest,
-        NativeGrantPromptResponse, parse_native_grant_prompt_args, run_prompt_on_ui_thread,
+        NativeGrantPromptResponse, parse_native_grant_prompt_args,
         summarize_audit_reporting_decision_for_trace, summarize_decision_for_trace,
         summarize_password_rotation_decision_for_trace, summarize_provisioning_decision_for_trace,
     };
@@ -457,25 +493,25 @@ mod tests {
         );
     }
 
+    #[cfg(target_os = "windows")]
     #[test]
-    fn run_prompt_on_ui_thread_executes_on_a_dedicated_worker() {
-        let caller_thread = format!("{:?}", std::thread::current().id());
-        let worker_thread = run_prompt_on_ui_thread("prompt-helper-test", || {
-            Ok::<_, String>(format!("{:?}", std::thread::current().id()))
-        })
-        .expect("prompt helper should return the worker thread id");
+    fn helper_process_timeout_terminates_the_child() {
+        let mut command = Command::new("powershell.exe");
+        command
+            .args([
+                "-NoProfile",
+                "-Command",
+                "Start-Sleep -Milliseconds 500; Write-Output done",
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let child = command.spawn().expect("PowerShell helper should start");
 
-        assert_ne!(worker_thread, caller_thread);
-    }
+        let error = super::wait_for_helper_output(child, Duration::from_millis(20))
+            .expect_err("helper should time out");
 
-    #[test]
-    fn run_prompt_on_ui_thread_propagates_prompt_errors() {
-        let error = run_prompt_on_ui_thread::<(), _>("prompt-helper-test-error", || {
-            Err("synthetic prompt failure".to_owned())
-        })
-        .expect_err("prompt helper should propagate prompt errors");
-
-        assert_eq!(error, "synthetic prompt failure");
+        assert!(error.contains("tiempo"));
     }
 
     #[test]

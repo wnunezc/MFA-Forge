@@ -71,6 +71,13 @@ fn request_transient_repaint(ctx: &egui::Context, opened_at: Instant) {
     }
 }
 
+const UNLOCK_PROMPT_TIMEOUT: Duration = Duration::from_secs(300);
+const PASSWORD_ROTATION_PROMPT_TIMEOUT: Duration = Duration::from_secs(300);
+
+fn prompt_timed_out(opened_at: Instant, timeout: Duration) -> bool {
+    opened_at.elapsed() >= timeout
+}
+
 fn allow_prompt_event_loop_any_thread(options: &mut eframe::NativeOptions) {
     #[cfg(target_os = "windows")]
     {
@@ -832,6 +839,12 @@ impl eframe::App for PasswordRotationApprovalApp {
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         theme::apply(ctx, self.theme_preference);
+        if prompt_timed_out(self.opened_at, PASSWORD_ROTATION_PROMPT_TIMEOUT) {
+            ui_trace("password_rotation.timeout", "status=denied");
+            self.deny(ctx);
+            return;
+        }
+        ctx.request_repaint_after(Duration::from_secs(1));
         if !self.first_frame_logged {
             ui_trace("password_rotation.first_frame", "window=shown");
             self.first_frame_logged = true;
@@ -1002,6 +1015,16 @@ impl AgentUnlockApp {
         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
     }
 
+    fn timeout(&mut self, ctx: &egui::Context) {
+        ui_trace("agent_session.timeout", "status=access_denied");
+        self.password_input.zeroize();
+        self.password_input.clear();
+        *self.outcome.borrow_mut() = Some(Err(tr(
+            "The agent session unlock timed out after five minutes.",
+        )));
+        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+    }
+
     fn poll_pending_prepare(&mut self, ctx: &egui::Context) {
         let poll = self
             .pending_prepare
@@ -1087,6 +1110,11 @@ impl AgentUnlockApp {
 impl eframe::App for AgentUnlockApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         theme::apply(ctx, self.theme_preference);
+        if prompt_timed_out(self.opened_at, UNLOCK_PROMPT_TIMEOUT) {
+            self.timeout(ctx);
+            return;
+        }
+        ctx.request_repaint_after(Duration::from_secs(1));
         if !self.first_frame_logged {
             ui_trace("agent_session.first_frame", "window=shown");
             self.first_frame_logged = true;
@@ -1161,5 +1189,22 @@ impl eframe::App for AgentUnlockApp {
                 });
             });
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{Duration, Instant};
+
+    use super::prompt_timed_out;
+
+    #[test]
+    fn prompt_timeout_detects_expired_deadline() {
+        assert!(prompt_timed_out(Instant::now(), Duration::ZERO));
+    }
+
+    #[test]
+    fn prompt_timeout_keeps_recent_prompt_open() {
+        assert!(!prompt_timed_out(Instant::now(), Duration::from_secs(300)));
     }
 }

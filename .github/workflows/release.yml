@@ -58,7 +58,7 @@ jobs:
             $prerelease = "false"
             $makeLatest = "true"
           } else {
-            throw "Unsupported tag format: $tagName. Expected v0.1.N-rc.N or v1.0.0"
+            throw "Unsupported tag format: $tagName. Expected v0.1.N-rc.N or vMAJOR.MINOR.PATCH"
           }
 
           "version=$version" >> $env:GITHUB_OUTPUT

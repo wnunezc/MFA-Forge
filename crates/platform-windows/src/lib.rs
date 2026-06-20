@@ -2,6 +2,7 @@ use mfa_forge_application::ports::{
     UserPresenceVerifier, VerificationHandle, VerificationPollResult,
 };
 use raw_window_handle::HasWindowHandle;
+use std::time::{Duration, Instant};
 
 #[derive(Clone, Copy, Debug)]
 pub struct OwnerWindow {
@@ -19,6 +20,11 @@ pub fn begin_verify_unlock(owner_window: OwnerWindow) -> Result<PendingVerificat
 
 pub fn settle_closed_prompt_window() {
     platform::settle_closed_prompt_window()
+}
+
+/// Drains pending Win32 messages owned by the current thread.
+pub fn pump_pending_messages() {
+    platform::pump_pending_messages();
 }
 
 pub enum VerificationPoll {
@@ -53,9 +59,29 @@ impl UserPresenceVerifier for OwnerWindow {
     }
 }
 
+fn wait_with_timeout<T>(
+    timeout: Duration,
+    poll_interval: Duration,
+    mut poll: impl FnMut() -> Result<Option<T>, String>,
+    mut cancel: impl FnMut(),
+    timeout_message: &str,
+) -> Result<T, String> {
+    let started_at = Instant::now();
+    loop {
+        if let Some(value) = poll()? {
+            return Ok(value);
+        }
+        if started_at.elapsed() >= timeout {
+            cancel();
+            return Err(timeout_message.to_owned());
+        }
+        std::thread::sleep(poll_interval);
+    }
+}
+
 #[cfg(target_os = "windows")]
 mod platform {
-    use std::{panic::AssertUnwindSafe, sync::mpsc, thread};
+    use std::{panic::AssertUnwindSafe, sync::mpsc, thread, time::Duration};
 
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
     use windows::{
@@ -75,11 +101,13 @@ mod platform {
         },
         core::HSTRING,
     };
-    use windows_future::IAsyncOperation;
+    use windows_future::{AsyncStatus, IAsyncOperation};
 
     const USER_CONSENT_CLASS: &str = "Windows.Security.Credentials.UI.UserConsentVerifier";
     const UNLOCK_REASON: &str =
         "Confirma tu identidad con Windows para desbloquear el vault de MFA-Forge.";
+    const WINDOWS_ASYNC_TIMEOUT: Duration = Duration::from_secs(120);
+    const WINDOWS_ASYNC_POLL_INTERVAL: Duration = Duration::from_millis(50);
 
     pub struct PlatformPendingVerification {
         receiver: mpsc::Receiver<Result<(), String>>,
@@ -152,26 +180,33 @@ mod platform {
 
     pub fn settle_closed_prompt_window() {
         use std::time::{Duration, Instant};
-        use windows::Win32::UI::WindowsAndMessaging::{
-            DispatchMessageW, MSG, PM_REMOVE, PeekMessageW, TranslateMessage,
-        };
 
         let started_at = Instant::now();
         while started_at.elapsed() < Duration::from_millis(250) {
-            let mut drained_any = false;
-            unsafe {
-                let mut message = MSG::default();
-                while PeekMessageW(&mut message, None, 0, 0, PM_REMOVE).into() {
-                    drained_any = true;
-                    let _ = TranslateMessage(&message);
-                    DispatchMessageW(&message);
-                }
-            }
+            let drained_any = pump_pending_messages();
 
             if !drained_any {
                 std::thread::sleep(Duration::from_millis(10));
             }
         }
+    }
+
+    /// Drains all currently queued Win32 messages and reports whether any were dispatched.
+    pub fn pump_pending_messages() -> bool {
+        use windows::Win32::UI::WindowsAndMessaging::{
+            DispatchMessageW, MSG, PM_REMOVE, PeekMessageW, TranslateMessage,
+        };
+
+        let mut drained_any = false;
+        unsafe {
+            let mut message = MSG::default();
+            while PeekMessageW(&mut message, None, 0, 0, PM_REMOVE).into() {
+                drained_any = true;
+                let _ = TranslateMessage(&message);
+                DispatchMessageW(&message);
+            }
+        }
+        drained_any
     }
 
     fn prepare_owner_window(hwnd: HWND) -> Result<(), String> {
@@ -205,9 +240,10 @@ mod platform {
     }
 
     fn verify_unlock_inner(hwnd: HWND) -> Result<(), String> {
-        let availability =
-            wait_for(UserConsentVerifier::CheckAvailabilityAsync().map_err(map_windows_error)?)
-                .map_err(map_windows_error)?;
+        let availability = wait_for(
+            UserConsentVerifier::CheckAvailabilityAsync().map_err(map_windows_error)?,
+            "Windows Hello no respondió dentro de 120 segundos al comprobar su disponibilidad.",
+        )?;
 
         match availability {
             UserConsentVerifierAvailability::Available => {}
@@ -258,7 +294,10 @@ mod platform {
         }
         .map_err(map_windows_error)?;
 
-        match wait_for(verification).map_err(map_windows_error)? {
+        match wait_for(
+            verification,
+            "Windows Hello no respondió dentro de 120 segundos durante la verificación.",
+        )? {
             UserConsentVerificationResult::Verified => Ok(()),
             UserConsentVerificationResult::Canceled => {
                 Err("La validación del sistema fue cancelada.".to_owned())
@@ -287,11 +326,33 @@ mod platform {
         }
     }
 
-    fn wait_for<T>(operation: IAsyncOperation<T>) -> windows::core::Result<T>
+    fn wait_for<T>(operation: IAsyncOperation<T>, timeout_message: &str) -> Result<T, String>
     where
         T: windows::core::RuntimeType,
     {
-        operation.join()
+        let result = super::wait_with_timeout(
+            WINDOWS_ASYNC_TIMEOUT,
+            WINDOWS_ASYNC_POLL_INTERVAL,
+            || match operation.Status().map_err(map_windows_error)? {
+                AsyncStatus::Started => Ok(None),
+                AsyncStatus::Completed => {
+                    operation.GetResults().map(Some).map_err(map_windows_error)
+                }
+                AsyncStatus::Canceled => Err("La operación de Windows fue cancelada.".to_owned()),
+                AsyncStatus::Error => operation.GetResults().map(Some).map_err(map_windows_error),
+                _ => Err("Windows devolvió un estado asíncrono desconocido.".to_owned()),
+            },
+            || {
+                let _ = operation.Cancel();
+                let _ = operation.Close();
+            },
+            timeout_message,
+        );
+
+        if result.is_ok() {
+            let _ = operation.Close();
+        }
+        result
     }
 
     fn map_windows_error(error: windows::core::Error) -> String {
@@ -343,4 +404,48 @@ mod platform {
     }
 
     pub fn settle_closed_prompt_window() {}
+
+    /// No-op implementation for unsupported platforms.
+    pub fn pump_pending_messages() {}
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::Cell, time::Duration};
+
+    use super::wait_with_timeout;
+
+    #[test]
+    fn bounded_wait_returns_completed_value_without_canceling() {
+        let canceled = Cell::new(false);
+
+        let result = wait_with_timeout(
+            Duration::from_millis(50),
+            Duration::from_millis(1),
+            || Ok(Some(42)),
+            || canceled.set(true),
+            "timed out",
+        )
+        .expect("operation should complete");
+
+        assert_eq!(result, 42);
+        assert!(!canceled.get());
+    }
+
+    #[test]
+    fn bounded_wait_cancels_when_deadline_expires() {
+        let canceled = Cell::new(false);
+
+        let error = wait_with_timeout::<()>(
+            Duration::from_millis(5),
+            Duration::from_millis(1),
+            || Ok(None),
+            || canceled.set(true),
+            "synthetic timeout",
+        )
+        .expect_err("operation should time out");
+
+        assert_eq!(error, "synthetic timeout");
+        assert!(canceled.get());
+    }
 }
