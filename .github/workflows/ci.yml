@@ -36,7 +36,7 @@ jobs:
         run: cargo clippy --workspace -- -D warnings
 
       - name: Check quality guardrails
-        shell: powershell
+        shell: pwsh
         run: ./scripts/check-quality-guardrails.ps1
 
       - name: Run unit tests
