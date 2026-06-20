@@ -19,6 +19,8 @@ mod views;
 pub fn run_main_app() -> eframe::Result<()> {
     runtime::ensure_supported_runtime("La GUI desktop de MFA-Forge")
         .map_err(|error| eframe::Error::AppCreation(Box::new(std::io::Error::other(error))))?;
+    platform_auth::configure_process_dpi_awareness()
+        .map_err(|error| eframe::Error::AppCreation(Box::new(std::io::Error::other(error))))?;
 
     let app_icon =
         eframe::icon_data::from_png_bytes(include_bytes!("../assets/icons/app-icon.png"))
@@ -27,9 +29,10 @@ pub fn run_main_app() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("MFA-Forge")
-            .with_inner_size([1380.0, 860.0])
-            .with_min_inner_size([1120.0, 720.0])
+            .with_min_inner_size([1000.0, 650.0])
+            .with_visible(false)
             .with_icon(app_icon),
+        persist_window: false,
         ..Default::default()
     };
 

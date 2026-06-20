@@ -89,6 +89,15 @@ fn allow_prompt_event_loop_any_thread(options: &mut eframe::NativeOptions) {
     }
 }
 
+fn agent_unlock_viewport(window_title: &str) -> egui::ViewportBuilder {
+    egui::ViewportBuilder::default()
+        .with_title(window_title)
+        .with_inner_size([520.0, 273.0])
+        .with_min_inner_size([460.0, 240.0])
+        .with_clamp_size_to_monitor_size(true)
+        .with_resizable(true)
+}
+
 pub fn run_unlock_window() -> Result<VaultFacade, String> {
     let theme_preference = theme::load_preference();
     i18n::init(theme::load_language_preference());
@@ -99,12 +108,7 @@ pub fn run_unlock_window() -> Result<VaultFacade, String> {
             .map_err(|error| error.to_string())?;
 
     let mut options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_title(window_title.clone())
-            .with_inner_size([520.0, 260.0])
-            .with_min_inner_size([520.0, 260.0])
-            .with_resizable(false)
-            .with_icon(app_icon),
+        viewport: agent_unlock_viewport(&window_title).with_icon(app_icon),
         persist_window: false,
         ..Default::default()
     };
@@ -1131,63 +1135,70 @@ impl eframe::App for AgentUnlockApp {
         let is_busy = self.pending_prepare.is_some() || self.pending_unlock.is_some();
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.with_layout(Layout::top_down(Align::Min), |ui| {
-                ui.add_space(4.0);
-                ui.heading(tr("MFA-Forge Agent Session"));
-                ui.add_space(8.0);
-                ui.label(
-                    tr("This window grants a temporary session for a local agent. The session stays open only while the process remains alive."),
-                );
-                ui.label(
-                    RichText::new(
-                        tr("The additional Windows verification remains implemented, but it is still under review until stability is confirmed."),
-                    )
-                    .color(Color32::from_rgb(181, 208, 255)),
-                );
-                ui.add_space(12.0);
+            egui::ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.with_layout(Layout::top_down(Align::Min), |ui| {
+                        ui.add_space(4.0);
+                        ui.heading(tr("MFA-Forge Agent Session"));
+                        ui.add_space(8.0);
+                        ui.label(
+                            tr("This window grants a temporary session for a local agent. The session stays open only while the process remains alive."),
+                        );
+                        ui.label(
+                            RichText::new(
+                                tr("The additional Windows verification remains implemented, but it is still under review until stability is confirmed."),
+                            )
+                            .color(Color32::from_rgb(181, 208, 255)),
+                        );
+                        ui.add_space(12.0);
 
-                let password_input = ui.add_enabled(
-                    !is_busy,
-                    TextEdit::singleline(&mut self.password_input)
-                        .password(true)
-                        .hint_text(tr("Master password")),
-                );
+                        let password_input = ui.add_enabled(
+                            !is_busy,
+                            TextEdit::singleline(&mut self.password_input)
+                                .password(true)
+                                .hint_text(tr("Master password")),
+                        );
 
-                if password_input.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
-                    self.submit_unlock(ctx);
-                }
+                        if password_input.lost_focus()
+                            && ui.input(|input| input.key_pressed(egui::Key::Enter))
+                        {
+                            self.submit_unlock(ctx);
+                        }
 
-                if let Some(error) = &self.error {
-                    ui.add_space(6.0);
-                    ui.colored_label(Color32::from_rgb(229, 90, 90), error);
-                } else if self.pending_prepare.is_some() {
-                    ui.add_space(6.0);
-                    ui.colored_label(
-                        Color32::from_rgb(181, 208, 255),
-                        tr("Validating the password against the vault and preparing the additional verification."),
-                    );
-                } else if self.pending_unlock.is_some() {
-                    ui.add_space(6.0);
-                    ui.colored_label(
-                        Color32::from_rgb(181, 208, 255),
-                        tr("Correct password. Waiting for the additional operating-system verification."),
-                    );
-                }
+                        if let Some(error) = &self.error {
+                            ui.add_space(6.0);
+                            ui.colored_label(Color32::from_rgb(229, 90, 90), error);
+                        } else if self.pending_prepare.is_some() {
+                            ui.add_space(6.0);
+                            ui.colored_label(
+                                Color32::from_rgb(181, 208, 255),
+                                tr("Validating the password against the vault and preparing the additional verification."),
+                            );
+                        } else if self.pending_unlock.is_some() {
+                            ui.add_space(6.0);
+                            ui.colored_label(
+                                Color32::from_rgb(181, 208, 255),
+                                tr("Correct password. Waiting for the additional operating-system verification."),
+                            );
+                        }
 
-                ui.add_space(16.0);
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui
-                        .add_enabled(!is_busy, egui::Button::new(tr("Unlock")))
-                        .clicked()
-                    {
-                        self.submit_unlock(ctx);
-                    }
+                        ui.add_space(16.0);
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            if ui
+                                .add_enabled(!is_busy, egui::Button::new(tr("Unlock")))
+                                .clicked()
+                            {
+                                self.submit_unlock(ctx);
+                            }
 
-                    if ui.button(format!("✖ {}", tr("Cancel"))).clicked() {
-                        self.cancel(ctx);
-                    }
+                            if ui.button(format!("✖ {}", tr("Cancel"))).clicked() {
+                                self.cancel(ctx);
+                            }
+                        });
+                    });
                 });
-            });
         });
     }
 }
@@ -1196,7 +1207,7 @@ impl eframe::App for AgentUnlockApp {
 mod tests {
     use std::time::{Duration, Instant};
 
-    use super::prompt_timed_out;
+    use super::{agent_unlock_viewport, prompt_timed_out};
 
     #[test]
     fn prompt_timeout_detects_expired_deadline() {
@@ -1206,5 +1217,15 @@ mod tests {
     #[test]
     fn prompt_timeout_keeps_recent_prompt_open() {
         assert!(!prompt_timed_out(Instant::now(), Duration::from_secs(300)));
+    }
+
+    #[test]
+    fn agent_unlock_viewport_allows_dpi_safe_resizing() {
+        let viewport = agent_unlock_viewport("MFA-Forge Agent Session");
+
+        assert_eq!(viewport.inner_size, Some(egui::vec2(520.0, 273.0)));
+        assert_eq!(viewport.min_inner_size, Some(egui::vec2(460.0, 240.0)));
+        assert_eq!(viewport.resizable, Some(true));
+        assert_eq!(viewport.clamp_size_to_monitor_size, Some(true));
     }
 }

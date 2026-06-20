@@ -2,6 +2,11 @@ name: Release MSI
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build without publishing
+        required: true
+        default: "1.0.2"
   push:
     tags:
       - "v*-rc.*"
@@ -10,12 +15,16 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
-permissions:
-  contents: write
-
 jobs:
   windows-msi:
     runs-on: windows-latest
+    permissions:
+      contents: read
+    outputs:
+      asset_name: ${{ steps.release_meta.outputs.asset_name }}
+      make_latest: ${{ steps.release_meta.outputs.make_latest }}
+      notes_path: ${{ steps.release_meta.outputs.notes_path }}
+      prerelease: ${{ steps.release_meta.outputs.prerelease }}
 
     steps:
       - name: Checkout
@@ -39,10 +48,19 @@ jobs:
         id: release_meta
         shell: powershell
         run: |
-          $tagName = "${{ github.ref_name }}"
-          if ($tagName -match '^v(?<version>\d+\.\d+\.(?<patch>\d+))-rc\.(?<rc>\d+)$') {
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $version = "${{ inputs.version }}"
+            if ($version -notmatch '^\d+\.\d+\.\d+$') {
+              throw "Unsupported build version: $version. Expected MAJOR.MINOR.PATCH"
+            }
+
+            $assetName = "MFA-Forge-$version-x64.msi"
+            $notesPath = "docs/release/$version-release.md"
+            $prerelease = "false"
+            $makeLatest = "false"
+          } elseif ("${{ github.ref_name }}" -match '^v(?<version>\d+\.\d+\.(?<patch>\d+))-rc\.(?<rc>\d+)$') {
             if ($Matches.patch -ne $Matches.rc) {
-              throw "RC number must match patch number for MFA-Forge: $tagName"
+              throw "RC number must match patch number for MFA-Forge: ${{ github.ref_name }}"
             }
 
             $version = $Matches.version
@@ -51,14 +69,14 @@ jobs:
             $notesPath = "docs/release/$version-rc.$rcNumber-draft.md"
             $prerelease = "true"
             $makeLatest = "false"
-          } elseif ($tagName -match '^v(?<version>\d+\.\d+\.\d+)$') {
+          } elseif ("${{ github.ref_name }}" -match '^v(?<version>\d+\.\d+\.\d+)$') {
             $version = $Matches.version
             $assetName = "MFA-Forge-$version-x64.msi"
             $notesPath = "docs/release/$version-release.md"
             $prerelease = "false"
             $makeLatest = "true"
           } else {
-            throw "Unsupported tag format: $tagName. Expected v0.1.N-rc.N or vMAJOR.MINOR.PATCH"
+            throw "Unsupported tag format: ${{ github.ref_name }}. Expected v0.1.N-rc.N or vMAJOR.MINOR.PATCH"
           }
 
           "version=$version" >> $env:GITHUB_OUTPUT
@@ -116,11 +134,28 @@ jobs:
             target/rc/*.msi
             target/rc/*.sha256.txt
 
+  publish-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: windows-msi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download MSI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: mfa-forge-msi
+          path: target/rc
+
       - name: Prepare release notes
-        shell: powershell
+        shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path 'target' | Out-Null
-          $notesPath = "${{ steps.release_meta.outputs.notes_path }}"
+          $notesPath = "${{ needs.windows-msi.outputs.notes_path }}"
 
           if (Test-Path -LiteralPath $notesPath) {
             Copy-Item -LiteralPath $notesPath -Destination 'target/release-notes.md' -Force
@@ -134,8 +169,8 @@ jobs:
           name: MFA-Forge ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           body_path: target/release-notes.md
-          prerelease: ${{ steps.release_meta.outputs.prerelease }}
-          make_latest: ${{ steps.release_meta.outputs.make_latest }}
+          prerelease: ${{ needs.windows-msi.outputs.prerelease }}
+          make_latest: ${{ needs.windows-msi.outputs.make_latest }}
           files: |
             target/rc/*.msi
             target/rc/*.sha256.txt

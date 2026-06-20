@@ -2391,6 +2391,8 @@ version = "1.0.2"
 dependencies = [
  "mfa-forge-application",
  "raw-window-handle",
+ "serde",
+ "serde_json",
  "windows 0.62.2",
  "windows-future",
 ]
@@ -4975,8 +4977,6 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 [[package]]
 name = "winit"
 version = "0.30.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6755fa58a9f8350bd1e472d4c3fcc25f824ec358933bba33306d0b63df5978d"
 dependencies = [
  "ahash",
  "android-activity",

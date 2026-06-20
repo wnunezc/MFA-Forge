@@ -1,4 +1,7 @@
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    time::{Duration, Instant},
+};
 
 use eframe::egui;
 use egui_commonmark::CommonMarkCache;
@@ -11,7 +14,7 @@ use crate::app_tasks::{
 };
 use crate::app_unlock::{GuiPendingPrepareUnlock, GuiPendingUnlockFlow};
 use crate::{
-    dialogs, help,
+    diagnostics, dialogs, help,
     i18n::{self, tr, trf},
     platform_auth,
     state::{AppState, BannerTone, Screen, WorkspaceScope},
@@ -52,6 +55,7 @@ pub struct ForgeApp {
     pub(crate) pending_token_job: Option<PendingTask<TokenTaskResult>>,
     pub(crate) pending_search_job: Option<PendingTask<SearchTaskResult>>,
     pub(crate) startup_update_check_attempted: bool,
+    pub(crate) last_main_window_state_save: Option<Instant>,
     pub(crate) help_markdown_cache: CommonMarkCache,
 }
 
@@ -63,6 +67,7 @@ impl ForgeApp {
         i18n::init(preferences.language);
 
         let owner_window = platform_auth::capture_owner_window(cc)?;
+        platform_auth::initialize_main_window(owner_window)?;
         let vault = VaultFacade::try_new().map_err(|error| error.to_string())?;
         let state = AppState::new(
             vault.is_initialized(),
@@ -81,8 +86,40 @@ impl ForgeApp {
             pending_token_job: None,
             pending_search_job: None,
             startup_update_check_attempted: false,
+            last_main_window_state_save: None,
             help_markdown_cache: CommonMarkCache::default(),
         })
+    }
+
+    fn save_main_window_state(&mut self, trigger: &str) {
+        match platform_auth::save_main_window(self.owner_window) {
+            Ok(()) => {
+                self.last_main_window_state_save = Some(Instant::now());
+                diagnostics::log_event(
+                    "gui",
+                    "main_window.save.ok",
+                    serde_json::json!({ "trigger": trigger }),
+                );
+            }
+            Err(error) => {
+                diagnostics::log_event(
+                    "gui",
+                    "main_window.save.error",
+                    serde_json::json!({ "trigger": trigger, "error": error }),
+                );
+            }
+        }
+    }
+
+    fn save_main_window_state_if_due(&mut self) {
+        let save_due = self
+            .last_main_window_state_save
+            .map(|last_save| last_save.elapsed() >= Duration::from_millis(750))
+            .unwrap_or(true);
+
+        if save_due {
+            self.save_main_window_state("periodic");
+        }
     }
 
     pub fn vault_path(&self) -> &str {
@@ -688,6 +725,12 @@ fn workspace_scope_matches(account: &AccountPublic, scope: &WorkspaceScope) -> b
 
 impl eframe::App for ForgeApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if ctx.input(|input| input.viewport().close_requested()) {
+            self.save_main_window_state("close_requested");
+        }
+        self.save_main_window_state_if_due();
+        ctx.request_repaint_after(Duration::from_millis(750));
+
         theme::apply(ctx, self.state.theme_preference);
         if !self.startup_update_check_attempted {
             self.startup_update_check_attempted = true;
@@ -714,5 +757,9 @@ impl eframe::App for ForgeApp {
         if self.state.token_dialog.open {
             request_open_windows_repaint(ctx);
         }
+    }
+
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        self.save_main_window_state("on_exit");
     }
 }
