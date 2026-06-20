@@ -11,4 +11,5 @@ serde_json.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+mfa-forge-storage = { path = "../storage", features = ["fast-test-kdf"] }
 tempfile.workspace = true

@@ -3,6 +3,9 @@ name = "mfa-forge-storage"
 version.workspace = true
 edition.workspace = true
 
+[features]
+fast-test-kdf = []
+
 [dependencies]
 aes-gcm.workspace = true
 argon2.workspace = true

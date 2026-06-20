@@ -5,6 +5,7 @@ mod prompt_helper;
 mod protocol;
 mod session;
 mod stdio;
+mod stdio_runtime;
 mod unlock;
 mod wire;
 

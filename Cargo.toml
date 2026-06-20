@@ -10,7 +10,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "1.0.1"
+version = "1.0.2"
 edition = "2024"
 license = "MIT"
 
@@ -34,6 +34,12 @@ thiserror = "2"
 totp-rs = { version = "5.7", default-features = false, features = ["otpauth", "zeroize"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 zeroize = "1"
+
+[patch.crates-io]
+# Temporary Windows hotfix: MFA-Forge vendors winit 0.30.13 with a minimal
+# WM_DPICHANGED fix for mixed-DPI monitor drags. Remove this override and return
+# to the official crates.io release once upstream publishes the fix.
+winit = { path = "vendor/winit-0.30.13-dpi-drag" }
 
 [profile.dev]
 incremental = false

@@ -2,45 +2,62 @@ use eframe::egui::{self, RichText, TextEdit};
 
 use crate::{app::ForgeApp, i18n::tr, state::LoaderMode, theme};
 
+fn use_stacked_layout(available_width: f32) -> bool {
+    available_width < 1_050.0
+}
+
 pub fn render(ctx: &egui::Context, app: &mut ForgeApp) {
     let palette = theme::palette(app.theme_preference());
 
     egui::CentralPanel::default().show(ctx, |ui| {
-        ui.add_space(18.0);
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.add_space(18.0);
 
-        ui.vertical_centered(|ui| {
-            ui.label(
-                RichText::new(tr("MFA-Forge"))
-                    .size(34.0)
-                    .strong()
-                    .color(palette.brand_accent),
-            );
-            ui.label(
-                RichText::new(tr("Developer-first authenticator with an encrypted local vault"))
-                    .size(15.0)
-                    .color(palette.secondary_text),
-            );
+                ui.vertical_centered(|ui| {
+                    ui.label(
+                        RichText::new(tr("MFA-Forge"))
+                            .size(34.0)
+                            .strong()
+                            .color(palette.brand_accent),
+                    );
+                    ui.label(
+                        RichText::new(tr(
+                            "Developer-first authenticator with an encrypted local vault",
+                        ))
+                        .size(15.0)
+                        .color(palette.secondary_text),
+                    );
+                });
+
+                ui.add_space(10.0);
+                ui.vertical_centered(|ui| {
+                    ui.label(
+                        RichText::new(tr(
+                            "Local storage | Argon2id + AES-256-GCM | No admin | GUI + CLI + future MCP/API",
+                        ))
+                        .small()
+                        .monospace()
+                        .color(palette.muted_text),
+                    );
+                });
+
+                ui.add_space(18.0);
+
+                if use_stacked_layout(ui.available_width()) {
+                    left_column(ui, app);
+                    ui.add_space(12.0);
+                    right_column(ui, app);
+                } else {
+                    ui.columns(2, |columns| {
+                        left_column(&mut columns[0], app);
+                        right_column(&mut columns[1], app);
+                    });
+                }
+            });
         });
-
-        ui.add_space(10.0);
-        ui.vertical_centered(|ui| {
-            ui.label(
-                RichText::new(tr(
-                    "Local storage | Argon2id + AES-256-GCM | No admin | GUI + CLI + future MCP/API",
-                ))
-                .small()
-                .monospace()
-                .color(palette.muted_text),
-            );
-        });
-
-        ui.add_space(18.0);
-
-        ui.columns(2, |columns| {
-            left_column(&mut columns[0], app);
-            right_column(&mut columns[1], app);
-        });
-    });
 }
 
 fn left_column(ui: &mut egui::Ui, app: &mut ForgeApp) {
@@ -229,4 +246,15 @@ fn section_frame() -> egui::Frame {
     egui::Frame::default()
         .rounding(egui::Rounding::same(6.0))
         .inner_margin(egui::Margin::same(16.0))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::use_stacked_layout;
+
+    #[test]
+    fn loader_stacks_columns_when_dpi_reduces_logical_width() {
+        assert!(use_stacked_layout(900.0));
+        assert!(!use_stacked_layout(1_200.0));
+    }
 }

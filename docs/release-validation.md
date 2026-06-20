@@ -96,6 +96,18 @@ The first literal installed proof for automatic startup update is:
 - observed path: GUI startup -> launcher -> helper copy -> published checksum verification -> `msiexec /passive`
 - result: installed `gui`, `agent`, `mcp`, and `launcher` all became `0.1.26`
 
+## Hotfix 1.0.2 lifecycle gate
+
+Before publishing `1.0.2`:
+
+- install public `1.0.1` and confirm all installed binaries report `1.0.1`
+- upgrade with `MFA-Forge-1.0.2-x64.msi` and confirm `msiexec` returns `0`
+- keep agent and MCP sessions open for eight hours without Application Hang event `1002`
+- run an initial 1,000-operation agent burst without logging generated token values
+- verify broker health fails within five seconds when its child is terminated
+- verify the following call starts a fresh visible unlock flow
+- confirm EOF and broker shutdown leave no agent/MCP/helper process behind
+
 ## Evidence to record
 
 Record these items in the release notes:

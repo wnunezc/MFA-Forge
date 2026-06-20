@@ -30,6 +30,24 @@ pub struct KdfParameters {
 
 impl KdfParameters {
     pub fn generated() -> Self {
+        #[cfg(any(test, feature = "fast-test-kdf"))]
+        {
+            return Self {
+                salt: SaltString::generate(&mut OsRng).to_string(),
+                memory_cost_kib: 1_024,
+                iterations: 1,
+                parallelism: 1,
+            };
+        }
+
+        #[cfg(not(any(test, feature = "fast-test-kdf")))]
+        {
+            Self::production_strength()
+        }
+    }
+
+    #[cfg(any(test, not(feature = "fast-test-kdf")))]
+    pub fn production_strength() -> Self {
         Self {
             salt: SaltString::generate(&mut OsRng).to_string(),
             memory_cost_kib: 65_536,
@@ -92,4 +110,27 @@ impl Default for VaultData {
 pub fn generate_nonce() -> [u8; 12] {
     let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
     nonce.into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::KdfParameters;
+
+    #[test]
+    fn generated_uses_fast_parameters_in_unit_tests() {
+        let kdf = KdfParameters::generated();
+
+        assert_eq!(kdf.memory_cost_kib, 1_024);
+        assert_eq!(kdf.iterations, 1);
+        assert_eq!(kdf.parallelism, 1);
+    }
+
+    #[test]
+    fn production_strength_parameters_remain_available_for_crypto_coverage() {
+        let kdf = KdfParameters::production_strength();
+
+        assert_eq!(kdf.memory_cost_kib, 65_536);
+        assert_eq!(kdf.iterations, 3);
+        assert_eq!(kdf.parallelism, 1);
+    }
 }

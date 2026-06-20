@@ -4,6 +4,8 @@ MFA-Forge is a secure MFA token manager written in Rust. The current release lin
 
 ## Release status
 
+- publishable hotfix candidate: `1.0.2`, pending the one-hour Windows lifecycle soak and explicit publication approval
+- `1.0.2` fixes persistent agent/MCP lifecycle handling and prepares an upgrade from `1.0.1`
 - current stable candidate follows the workspace version in `Cargo.toml`
 - stable MSI artifacts follow `target/rc/MFA-Forge-<version>-x64.msi`
 - the exact upgrade path from the installed previous release line to the current candidate must be recorded alongside publication evidence

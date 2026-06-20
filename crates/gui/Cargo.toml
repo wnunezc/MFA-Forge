@@ -43,6 +43,7 @@ winit = "0.30"
 zeroize.workspace = true
 
 [dev-dependencies]
+mfa-forge-storage = { path = "../storage", features = ["fast-test-kdf"] }
 tempfile.workspace = true
 
 [build-dependencies]

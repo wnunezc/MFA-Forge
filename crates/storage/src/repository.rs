@@ -1,8 +1,6 @@
 use std::{
-    collections::{BTreeMap, HashSet},
-    ffi::OsString,
+    collections::HashSet,
     fs,
-    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -18,8 +16,16 @@ use mfa_forge_core::{
 use crate::{
     StorageError,
     crypto::{DecryptedVault, decrypt_vault, encrypt_vault},
-    types::{AccountHistoryEntry, VaultData, VaultEnvelope},
+    types::{VaultData, VaultEnvelope},
 };
+
+mod directory_registry;
+mod history;
+mod io;
+
+use directory_registry::normalize_directory_registry;
+use history::{capture_history, unix_timestamp_now};
+use io::{remove_if_exists, sibling_path_with_suffix, write_bytes, write_bytes_at};
 
 pub fn default_vault_path() -> Result<PathBuf, StorageError> {
     let project_dirs = ProjectDirs::from("dev", "OpsZone", "MFA-Forge")
@@ -491,19 +497,6 @@ impl VaultRepository {
     }
 }
 
-fn capture_history(
-    history: &mut Vec<AccountHistoryEntry>,
-    event: AccountHistoryEvent,
-    account: AccountRecord,
-) {
-    history.push(AccountHistoryEntry::new(
-        event,
-        account,
-        unix_timestamp_now(),
-    ));
-    history.sort_by_key(|entry| std::cmp::Reverse(entry.captured_at));
-}
-
 fn ensure_not_duplicate(
     accounts: &[AccountRecord],
     candidate: &AccountPublic,
@@ -548,106 +541,6 @@ fn path_contains_or_descends(candidate: &str, root: &str) -> bool {
         || candidate
             .strip_prefix(root)
             .is_some_and(|suffix| suffix.starts_with('/'))
-}
-
-fn normalize_directory_registry(vault: &mut VaultData) -> Result<bool, StorageError> {
-    let mut directories_by_path = BTreeMap::<String, (u64, u64)>::new();
-
-    for directory in &vault.directories {
-        let normalized_path = normalize_project_path_value(directory.path.clone())?;
-        let entry = directories_by_path
-            .entry(normalized_path)
-            .or_insert((directory.created_at, directory.updated_at));
-        entry.0 = entry.0.min(directory.created_at);
-        entry.1 = entry.1.max(directory.updated_at.max(directory.created_at));
-    }
-
-    for account in &vault.accounts {
-        let Some(project_path) = account.public.metadata.project_path.clone() else {
-            continue;
-        };
-
-        let normalized_path = normalize_project_path_value(project_path)?;
-        let entry = directories_by_path.entry(normalized_path).or_insert((
-            account.public.created_at,
-            account
-                .public
-                .metadata
-                .updated_at
-                .max(account.public.created_at),
-        ));
-        entry.0 = entry.0.min(account.public.created_at);
-        entry.1 = entry.1.max(
-            account
-                .public
-                .metadata
-                .updated_at
-                .max(account.public.created_at),
-        );
-    }
-
-    let mut normalized_directories = directories_by_path
-        .into_iter()
-        .map(|(path, (created_at, updated_at))| {
-            ProjectDirectory::with_timestamps(path, created_at, updated_at)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    sort_directories(&mut normalized_directories);
-
-    let changed = vault.directories != normalized_directories;
-    vault.directories = normalized_directories;
-    Ok(changed)
-}
-
-fn write_bytes(path: &Path, bytes: &[u8]) -> Result<(), StorageError> {
-    let mut file = fs::File::create(path).map_err(StorageError::WriteFile)?;
-    file.write_all(bytes).map_err(StorageError::WriteFile)?;
-    file.sync_all().map_err(StorageError::WriteFile)?;
-    Ok(())
-}
-
-fn write_bytes_at(path: &Path, bytes: &[u8]) -> Result<(), StorageError> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(StorageError::CreateDir)?;
-    }
-
-    let temp_path = sibling_path_with_suffix(path, "tmp");
-    remove_if_exists(&temp_path)?;
-    write_bytes(&temp_path, bytes)?;
-
-    if let Err(error) = (|| {
-        remove_if_exists(path)?;
-        fs::rename(&temp_path, path).map_err(StorageError::PersistVault)
-    })() {
-        let _ = remove_if_exists(&temp_path);
-        return Err(error);
-    }
-
-    Ok(())
-}
-
-fn remove_if_exists(path: &Path) -> Result<(), StorageError> {
-    if path.exists() {
-        fs::remove_file(path).map_err(StorageError::RemoveFile)?;
-    }
-
-    Ok(())
-}
-
-fn sibling_path_with_suffix(path: &Path, suffix: &str) -> PathBuf {
-    let mut file_name = path
-        .file_name()
-        .map(|name| name.to_os_string())
-        .unwrap_or_else(|| OsString::from("vault"));
-    file_name.push(format!(".{suffix}"));
-    path.with_file_name(file_name)
-}
-
-fn unix_timestamp_now() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_secs())
-        .unwrap_or_default()
 }
 
 #[cfg(test)]
