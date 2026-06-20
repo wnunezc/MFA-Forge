@@ -11,6 +11,7 @@ use uuid::Uuid;
 const AUDIT_LOG_READ_CHUNK_BYTES: usize = 8 * 1024;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Sanitized audit-log record read from the local MCP JSONL audit file.
 pub struct AuditEventRecord {
     pub timestamp_utc_epoch_ms: u64,
     pub process_id: u32,
@@ -30,6 +31,7 @@ pub struct AuditEventRecord {
 }
 
 #[derive(Debug, Clone, Serialize)]
+/// Aggregated counts over a bounded audit-log read window.
 pub struct AuditEventSummary {
     pub total_events_considered: usize,
     pub counts_by_event: Value,
@@ -40,10 +42,12 @@ pub struct AuditEventSummary {
     pub oldest_timestamp_utc_epoch_ms: Option<u64>,
 }
 
+/// Returns the default MCP audit-log path next to the active vault file.
 pub fn default_mcp_audit_path(vault_path: &Path) -> PathBuf {
     vault_path.with_file_name("mcp-audit.jsonl")
 }
 
+/// Appends one serialized audit entry and compacts the JSONL file when needed.
 pub fn append_jsonl_entry<T>(
     path: &Path,
     entry: &T,
@@ -77,6 +81,7 @@ where
     compact_if_needed(path, max_bytes_before_compaction, retained_event_count)
 }
 
+/// Reads the newest sanitized audit events from the local JSONL audit file.
 pub fn read_recent_events(path: &Path, limit: usize) -> Result<Vec<AuditEventRecord>, String> {
     if limit == 0 {
         return Ok(Vec::new());
@@ -100,6 +105,7 @@ pub fn read_recent_events(path: &Path, limit: usize) -> Result<Vec<AuditEventRec
     Ok(events)
 }
 
+/// Summarizes recent audit events by event name and result value.
 pub fn summarize_recent_events(path: &Path, limit: usize) -> Result<AuditEventSummary, String> {
     let events = read_recent_events(path, limit)?;
     let mut counts_by_event = serde_json::Map::new();
